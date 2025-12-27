@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Material;
+use App\Models\MaterialPickup;
 use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\Tool;
 use App\Models\ToolLoan;
 use App\Models\ToolUnit;
 use Illuminate\Http\Request;
@@ -246,16 +250,129 @@ class ToolLoanController extends Controller
      */
     public function dashboard(Request $request): Response
     {
-        // Get statistics
+        // ===== STATISTICS =====
+        // Tools statistics
+        $toolsCount = Tool::count();
+        $toolUnitsCount = ToolUnit::count();
+        $toolsAvailable = ToolUnit::where('condition', 'good')
+            ->whereDoesntHave('toolLoans', function ($query) {
+                $query->where('status', 'borrowed');
+            })
+            ->count();
+        $toolsBorrowed = ToolUnit::whereHas('toolLoans', function ($query) {
+            $query->where('status', 'borrowed');
+        })->count();
+        $toolsDamaged = ToolUnit::where('condition', 'damaged')->count();
+        $toolsScrapped = ToolUnit::where('condition', 'scrapped')->count();
+
+        // Materials statistics
+        $materialsCount = Material::count();
+        $materialsTotalStock = Material::sum('stok');
+        $materialsLowStock = Material::where('stok', '<', 10)->count(); // Threshold: 10
+
+        // Loans statistics
         $totalLoans = ToolLoan::count();
         $activeLoans = ToolLoan::where('status', 'borrowed')->count();
         $returnedLoans = ToolLoan::where('status', 'returned')->count();
+        $loansToday = ToolLoan::whereDate('borrowed_at', today())->count();
+        $returnsToday = ToolLoan::whereDate('returned_at', today())->count();
+
+        // Users statistics
+        $studentsCount = Student::count();
+        $teachersCount = Teacher::count();
+
+        // ===== RECENT ACTIVITIES =====
+        // Recent loans (5 latest)
+        $recentLoans = ToolLoan::with(['student.major', 'toolUnit.tool'])
+            ->orderBy('borrowed_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($loan) {
+                return [
+                    'id' => $loan->id,
+                    'student_name' => $loan->student->name,
+                    'student_nis' => $loan->student->nis,
+                    'major_name' => $loan->student->major->name ?? '-',
+                    'tool_name' => $loan->toolUnit->tool->name,
+                    'unit_code' => $loan->toolUnit->unit_code,
+                    'status' => $loan->status,
+                    'borrowed_at' => $loan->borrowed_at->format('d M Y H:i'),
+                ];
+            })
+            ->values()
+            ->toArray();
+
+
+        // ===== ALERTS =====
+        // Overdue loans (borrowed more than 8 hours ago)
+        $overdueLoans = ToolLoan::with(['student.major', 'toolUnit.tool'])
+            ->where('status', 'borrowed')
+            ->where('borrowed_at', '<', now()->subHours(8))
+            ->orderBy('borrowed_at', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(function ($loan) {
+                $hoursAgo = now()->diffInHours($loan->borrowed_at);
+                return [
+                    'id' => $loan->id,
+                    'student_name' => $loan->student->name,
+                    'student_nis' => $loan->student->nis,
+                    'tool_name' => $loan->toolUnit->tool->name,
+                    'unit_code' => $loan->toolUnit->unit_code,
+                    'borrowed_at' => $loan->borrowed_at->format('d M Y H:i'),
+                    'hours_ago' => $hoursAgo,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        // Low stock materials
+        $lowStockMaterials = Material::where('stok', '<', 10)
+            ->orderBy('stok', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(function ($material) {
+                return [
+                    'id' => $material->id,
+                    'nama_bahan' => $material->nama_bahan,
+                    'stok' => $material->stok,
+                    'satuan' => $material->satuan,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        // Damaged tools pending repair
+        $damagedToolsPending = ToolUnit::with('tool')
+            ->where('condition', 'damaged')
+            ->limit(10)
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'id' => $unit->id,
+                    'tool_name' => $unit->tool->name,
+                    'unit_code' => $unit->unit_code,
+                    'condition' => $unit->condition,
+                ];
+            })
+            ->values()
+            ->toArray();
 
         return Inertia::render('Dashboard', [
             'stats' => [
+                'tools_count' => $toolsCount,
+                'tools_available' => $toolsAvailable,
+                'tools_borrowed' => $toolsBorrowed,
                 'total_loans' => $totalLoans,
                 'active_loans' => $activeLoans,
-                'returned_loans' => $returnedLoans,
+                'loans_today' => $loansToday,
+                'returns_today' => $returnsToday,
+            ],
+            'recent_loans' => $recentLoans,
+            'alerts' => [
+                'overdue_loans' => $overdueLoans,
+                'low_stock_materials' => $lowStockMaterials,
+                'damaged_tools_pending' => $damagedToolsPending,
             ],
         ]);
     }
