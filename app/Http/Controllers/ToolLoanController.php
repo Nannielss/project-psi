@@ -54,16 +54,6 @@ class ToolLoanController extends Controller
             ], 404);
         }
 
-        // Check if student has active loan
-        if ($student->hasActiveLoan()) {
-            $activeLoan = $student->activeLoan()->load('toolUnit.tool');
-            return response()->json([
-                'success' => false,
-                'message' => 'Siswa masih memiliki pinjaman aktif. Harus dikembalikan terlebih dahulu.',
-                'active_loan' => $activeLoan,
-            ], 422);
-        }
-
         return response()->json([
             'success' => true,
             'student' => $student,
@@ -99,9 +89,15 @@ class ToolLoanController extends Controller
         }
 
         if ($toolUnit->condition !== 'good') {
+            $conditionMessages = [
+                'damaged' => 'rusak',
+                'scrapped' => 'rusak total',
+            ];
+            $conditionMessage = $conditionMessages[$toolUnit->condition] ?? $toolUnit->condition;
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Alat tidak dapat dipinjam karena kondisinya: ' . $toolUnit->condition,
+                'message' => 'Alat tidak dapat dipinjam karena kondisinya ' . $conditionMessage . '.',
             ], 422);
         }
 
@@ -123,14 +119,6 @@ class ToolLoanController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Verify student doesn't have active loan
-        $student = Student::findOrFail($validated['student_id']);
-        if ($student->hasActiveLoan()) {
-            return redirect()->back()
-                ->withErrors(['student_id' => 'Siswa masih memiliki pinjaman aktif. Harus dikembalikan terlebih dahulu.'])
-                ->withInput();
-        }
-
         // Verify tool unit is available
         $toolUnit = ToolUnit::findOrFail($validated['tool_unit_id']);
         if ($toolUnit->isBorrowed()) {
@@ -140,8 +128,14 @@ class ToolLoanController extends Controller
         }
 
         if ($toolUnit->condition !== 'good') {
+            $conditionMessages = [
+                'damaged' => 'rusak',
+                'scrapped' => 'rusak total',
+            ];
+            $conditionMessage = $conditionMessages[$toolUnit->condition] ?? $toolUnit->condition;
+            
             return redirect()->back()
-                ->withErrors(['tool_unit_id' => 'Alat tidak dapat dipinjam karena kondisinya tidak baik.'])
+                ->withErrors(['tool_unit_id' => 'Alat tidak dapat dipinjam karena kondisinya ' . $conditionMessage . '.'])
                 ->withInput();
         }
 
@@ -168,19 +162,21 @@ class ToolLoanController extends Controller
     public function storeReturn(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
+            'tool_unit_id' => 'required|exists:tool_units,id',
             'return_photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'return_condition' => 'required|in:good,damaged,service',
+            'return_condition' => 'required|in:good,damaged',
             'notes' => 'nullable|string',
         ]);
 
-        // Find active loan for this student
-        $student = Student::findOrFail($validated['student_id']);
-        $activeLoan = $student->activeLoan();
+        // Find active loan for this tool unit
+        $toolUnit = ToolUnit::findOrFail($validated['tool_unit_id']);
+        $activeLoan = ToolLoan::where('tool_unit_id', $toolUnit->id)
+            ->where('status', 'borrowed')
+            ->first();
 
         if (!$activeLoan) {
             return redirect()->back()
-                ->withErrors(['student_id' => 'Siswa tidak memiliki pinjaman aktif.'])
+                ->withErrors(['tool_unit_id' => 'Alat ini tidak sedang dipinjam.'])
                 ->withInput();
         }
 
@@ -207,35 +203,40 @@ class ToolLoanController extends Controller
     }
 
     /**
-     * Get active loan for student (for return page).
+     * Get active loan by tool unit code and student (for return page).
      */
-    public function getActiveLoan(Request $request)
+    public function getActiveLoanByTool(Request $request)
     {
         $request->validate([
-            'nis' => 'required|string',
+            'unit_code' => 'required|string',
+            'student_id' => 'required|exists:students,id',
         ]);
 
-        $student = Student::where('nis', $request->nis)->first();
+        $toolUnit = ToolUnit::where('unit_code', $request->unit_code)->first();
 
-        if (!$student) {
+        if (!$toolUnit) {
             return response()->json([
                 'success' => false,
-                'message' => 'Siswa dengan NIS tersebut tidak ditemukan.',
+                'message' => 'Alat dengan kode tersebut tidak ditemukan.',
             ], 404);
         }
 
-        $activeLoan = $student->activeLoan();
+        // Find active loan for this tool unit and student
+        $activeLoan = ToolLoan::where('tool_unit_id', $toolUnit->id)
+            ->where('student_id', $request->student_id)
+            ->where('status', 'borrowed')
+            ->with(['student.major', 'toolUnit.tool'])
+            ->first();
 
         if (!$activeLoan) {
             return response()->json([
                 'success' => false,
-                'message' => 'Siswa tidak memiliki pinjaman aktif.',
+                'message' => 'Alat ini tidak sedang dipinjam oleh siswa ini.',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'student' => $student->load('major'),
             'loan' => $activeLoan->load('toolUnit.tool'),
         ]);
     }

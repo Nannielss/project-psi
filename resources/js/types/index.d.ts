@@ -75,7 +75,7 @@ export interface ToolUnit {
     tool_id: number;
     unit_number: number;
     unit_code: string;
-    condition: 'good' | 'damaged' | 'service';
+    condition: 'good' | 'damaged' | 'scrapped';
     description?: string;
     created_at: string;
     updated_at: string;
@@ -95,7 +95,7 @@ export interface Tool {
     total_units?: number;
     good_count?: number;
     damaged_count?: number;
-    service_count?: number;
+    scrapped_count?: number;
 }
 
 export interface ToolLoan {
@@ -107,7 +107,7 @@ export interface ToolLoan {
     borrowed_at: string;
     returned_at?: string;
     status: 'borrowed' | 'returned';
-    return_condition?: 'good' | 'damaged' | 'service';
+    return_condition?: 'good' | 'damaged';
     notes?: string;
     created_at: string;
     updated_at: string;

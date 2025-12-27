@@ -32,17 +32,22 @@ export default function Return() {
     const [step, setStep] = useState(1);
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
+    const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
+    const [studentVerificationError, setStudentVerificationError] = useState('');
+    
+    const [unitCode, setUnitCode] = useState('');
     const [activeLoan, setActiveLoan] = useState<ToolLoan | null>(null);
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [verificationError, setVerificationError] = useState('');
+    const [isVerifyingTool, setIsVerifyingTool] = useState(false);
+    const [toolVerificationError, setToolVerificationError] = useState('');
 
-    const [returnCondition, setReturnCondition] = useState<'good' | 'damaged' | 'service'>('good');
+    const [returnCondition, setReturnCondition] = useState<'good' | 'damaged'>('good');
     const [returnPhoto, setReturnPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
 
     // Show toast notifications
     useEffect(() => {
@@ -57,35 +62,69 @@ export default function Return() {
     const handleVerifyStudent = async (nisToVerify?: string) => {
         const nisValue = nisToVerify || nis.trim();
         if (!nisValue) {
-            setVerificationError('Masukkan NIS terlebih dahulu');
+            setStudentVerificationError('Masukkan NIS terlebih dahulu');
             return;
         }
 
-        setIsVerifying(true);
-        setVerificationError('');
+        setIsVerifyingStudent(true);
+        setStudentVerificationError('');
 
         try {
-            const response = await axios.post('/tool-loans/get-active-loan', { nis: nisValue });
+            const response = await axios.post('/tool-loans/verify-student', { nis: nisValue });
             if (response.data.success) {
                 setVerifiedStudent(response.data.student);
-                setActiveLoan(response.data.loan);
                 setNis(nisValue);
                 setStep(2);
-                toast.success('Pinjaman aktif ditemukan');
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Siswa dengan NIS tersebut tidak ditemukan atau tidak memiliki pinjaman aktif';
-            setVerificationError(errorMessage);
+            const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
+            setStudentVerificationError(errorMessage);
             setVerifiedStudent(null);
-            setActiveLoan(null);
-            toast.error(errorMessage);
         } finally {
-            setIsVerifying(false);
+            setIsVerifyingStudent(false);
+        }
+    };
+
+    const handleVerifyTool = async (codeToVerify?: string) => {
+        if (!verifiedStudent) {
+            setToolVerificationError('Verifikasi siswa terlebih dahulu');
+            return;
+        }
+
+        const codeValue = codeToVerify || unitCode.trim();
+        if (!codeValue) {
+            setToolVerificationError('Masukkan kode alat terlebih dahulu');
+            return;
+        }
+
+        setIsVerifyingTool(true);
+        setToolVerificationError('');
+
+        try {
+            const response = await axios.post('/tool-loans/get-active-loan-by-tool', {
+                unit_code: codeValue,
+                student_id: verifiedStudent.id,
+            });
+            if (response.data.success) {
+                setActiveLoan(response.data.loan);
+                setUnitCode(codeValue);
+                setStep(3);
+            }
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || 'Alat tidak ditemukan atau tidak dipinjam oleh siswa ini';
+            setToolVerificationError(errorMessage);
+            setActiveLoan(null);
+        } finally {
+            setIsVerifyingTool(false);
         }
     };
 
     const handleQRScanSuccess = (decodedText: string) => {
-        handleVerifyStudent(decodedText);
+        if (scannerType === 'student') {
+            handleVerifyStudent(decodedText);
+        } else {
+            handleVerifyTool(decodedText);
+        }
     };
 
     const handleQRScanError = (error: string) => {
@@ -111,7 +150,7 @@ export default function Return() {
         setIsSubmitting(true);
 
         const formData = new FormData();
-        formData.append('student_id', verifiedStudent.id.toString());
+        formData.append('tool_unit_id', activeLoan.tool_unit_id.toString());
         formData.append('return_photo', returnPhoto);
         formData.append('return_condition', returnCondition);
         if (notes) {
@@ -124,7 +163,7 @@ export default function Return() {
                 toast.success('Pengembalian alat berhasil dicatat');
                 // Reset form
                 setStep(1);
-                setNis('');
+                setUnitCode('');
                 setVerifiedStudent(null);
                 setActiveLoan(null);
                 setReturnCondition('good');
@@ -163,7 +202,7 @@ export default function Return() {
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Pengembalian Alat</h1>
                             <p className="text-muted-foreground">
-                                Scan QR identitas siswa, pilih kondisi alat, lalu ambil foto untuk mengembalikan alat
+                                Verifikasi siswa, scan QR code alat yang akan dikembalikan, pilih kondisi alat, lalu ambil foto untuk mengembalikan alat
                             </p>
                         </div>
                     </div>
@@ -185,14 +224,23 @@ export default function Return() {
                             }`}>
                                 {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
                             </div>
-                            <span className="font-medium">Kondisi Alat</span>
+                            <span className="font-medium">Scan QR Alat</span>
                         </div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
                             <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
                                 step >= 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
                             }`}>
-                                3
+                                {step > 3 ? <CheckCircle2 className="h-4 w-4" /> : '3'}
+                            </div>
+                            <span className="font-medium">Kondisi Alat</span>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <div className={`flex items-center gap-2 ${step >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
+                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                                step >= 4 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
+                            }`}>
+                                4
                             </div>
                             <span className="font-medium">Foto & Submit</span>
                         </div>
@@ -202,14 +250,14 @@ export default function Return() {
                     {step === 1 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Verifikasi Identitas Siswa</CardTitle>
+                                <CardTitle>Verifikasi Siswa</CardTitle>
                                 <CardDescription>
-                                    Scan QR code atau masukkan NIS siswa untuk melihat pinjaman aktif
+                                    Scan QR code atau masukkan NIS siswa
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="nis">NIS Siswa</Label>
+                                    <Label htmlFor="nis">NIS</Label>
                                     <div className="flex gap-2">
                                         <Input
                                             id="nis"
@@ -217,7 +265,7 @@ export default function Return() {
                                             value={nis}
                                             onChange={(e) => {
                                                 setNis(e.target.value);
-                                                setVerificationError('');
+                                                setStudentVerificationError('');
                                             }}
                                             onKeyPress={(e) => {
                                                 if (e.key === 'Enter') {
@@ -229,55 +277,38 @@ export default function Return() {
                                         <Button
                                             type="button"
                                             onClick={() => handleVerifyStudent()}
-                                            disabled={isVerifying}
+                                            disabled={isVerifyingStudent}
                                         >
-                                            {isVerifying ? 'Memverifikasi...' : 'Verifikasi'}
+                                            {isVerifyingStudent ? 'Memverifikasi...' : 'Verifikasi'}
                                         </Button>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>atau</span>
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            size="sm"
-                                            onClick={() => setIsScannerOpen(true)}
+                                            onClick={() => {
+                                                setScannerType('student');
+                                                setIsScannerOpen(true);
+                                            }}
                                         >
-                                            <Camera className="mr-2 h-4 w-4" />
-                                            Scan QR Code
+                                            <Camera className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
 
-                                {verificationError && (
-                                    <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md">
-                                        <XCircle className="h-4 w-4" />
-                                        <span className="text-sm">{verificationError}</span>
+                                {studentVerificationError && (
+                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                        {studentVerificationError}
                                     </div>
                                 )}
 
-                                {verifiedStudent && activeLoan && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-green-900 dark:text-green-100">
-                                                Pinjaman Aktif Ditemukan
-                                            </p>
-                                            <p className="text-sm text-green-700 dark:text-green-300">
-                                                {verifiedStudent.name} (NIS: {verifiedStudent.nis})
-                                            </p>
-                                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                                                Alat: {activeLoan.tool_unit?.tool?.name} - {activeLoan.tool_unit?.unit_code}
-                                            </p>
-                                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                                Dipinjam: {new Date(activeLoan.borrowed_at).toLocaleString('id-ID')}
-                                            </p>
-                                        </div>
+                                {verifiedStudent && (
+                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                                        <p className="font-medium">{verifiedStudent.name}</p>
+                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                         <Button
                                             onClick={() => setStep(2)}
-                                            disabled={!verifiedStudent || !activeLoan}
+                                            className="mt-3"
                                         >
                                             Lanjutkan
-                                            <ArrowRight className="ml-2 h-4 w-4" />
                                         </Button>
                                     </div>
                                 )}
@@ -285,8 +316,100 @@ export default function Return() {
                         </Card>
                     )}
 
-                    {/* Step 2: Select Condition */}
-                    {step === 2 && verifiedStudent && activeLoan && (
+                    {/* Step 2: Verify Tool */}
+                    {step === 2 && verifiedStudent && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Scan QR Code Alat</CardTitle>
+                                <CardDescription>
+                                    Scan QR code alat yang akan dikembalikan
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="p-3 bg-muted rounded-md">
+                                    <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
+                                    <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="unit_code">Kode Unit Alat</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="unit_code"
+                                            placeholder="Masukkan kode unit atau scan QR code"
+                                            value={unitCode}
+                                            onChange={(e) => {
+                                                setUnitCode(e.target.value);
+                                                setToolVerificationError('');
+                                            }}
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleVerifyTool();
+                                                }
+                                            }}
+                                            className="flex-1"
+                                        />
+                                        <Button
+                                            type="button"
+                                            onClick={() => handleVerifyTool()}
+                                            disabled={isVerifyingTool}
+                                        >
+                                            {isVerifyingTool ? 'Memverifikasi...' : 'Verifikasi'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setScannerType('tool');
+                                                setIsScannerOpen(true);
+                                            }}
+                                        >
+                                            <Camera className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {toolVerificationError && (
+                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                        {toolVerificationError}
+                                    </div>
+                                )}
+
+                                {activeLoan && (
+                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                                        <p className="font-medium">Pinjaman Ditemukan</p>
+                                        <p className="text-sm mt-1">{activeLoan.tool_unit?.tool?.name} - {activeLoan.tool_unit?.unit_code}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Dipinjam: {new Date(activeLoan.borrowed_at).toLocaleString('id-ID')}
+                                        </p>
+                                        <Button
+                                            onClick={() => setStep(3)}
+                                            className="mt-3"
+                                        >
+                                            Lanjutkan
+                                        </Button>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setStep(1);
+                                            setUnitCode('');
+                                            setActiveLoan(null);
+                                        }}
+                                    >
+                                        Ganti Siswa
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Step 3: Select Condition */}
+                    {step === 3 && verifiedStudent && activeLoan && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Pilih Kondisi Alat</CardTitle>
@@ -306,7 +429,7 @@ export default function Return() {
                                     <Label htmlFor="return_condition">Kondisi Alat</Label>
                                     <Select
                                         value={returnCondition}
-                                        onValueChange={(value: 'good' | 'damaged' | 'service') => setReturnCondition(value)}
+                                        onValueChange={(value: 'good' | 'damaged') => setReturnCondition(value)}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Pilih kondisi alat" />
@@ -314,7 +437,6 @@ export default function Return() {
                                         <SelectContent>
                                             <SelectItem value="good">Baik</SelectItem>
                                             <SelectItem value="damaged">Rusak</SelectItem>
-                                            <SelectItem value="service">Perlu Service</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-sm text-muted-foreground">
@@ -322,29 +444,27 @@ export default function Return() {
                                     </p>
                                 </div>
 
-                                <div className="flex gap-2 pt-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setStep(1)}
-                                    >
-                                        <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Kembali
-                                    </Button>
-                                    <Button
-                                        onClick={() => setStep(3)}
-                                        className="flex-1"
-                                    >
-                                        Lanjutkan
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </div>
+                                    <div className="flex gap-2 pt-4">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setStep(2)}
+                                        >
+                                            Kembali
+                                        </Button>
+                                        <Button
+                                            onClick={() => setStep(4)}
+                                            className="flex-1"
+                                        >
+                                            Lanjutkan
+                                        </Button>
+                                    </div>
                             </CardContent>
                         </Card>
                     )}
 
-                    {/* Step 3: Photo & Submit */}
-                    {step === 3 && verifiedStudent && activeLoan && (
+                    {/* Step 4: Photo & Submit */}
+                    {step === 4 && verifiedStudent && activeLoan && (
                         <form onSubmit={handleSubmit}>
                             <Card>
                                 <CardHeader>
@@ -360,7 +480,7 @@ export default function Return() {
                                         <p className="text-sm font-medium mt-2">Alat: {activeLoan.tool_unit?.tool?.name}</p>
                                         <p className="text-xs text-muted-foreground">Unit: {activeLoan.tool_unit?.unit_code}</p>
                                         <Badge variant="secondary" className="mt-2">
-                                            Kondisi: {returnCondition === 'good' ? 'Baik' : returnCondition === 'damaged' ? 'Rusak' : 'Perlu Service'}
+                                            Kondisi: {returnCondition === 'good' ? 'Baik' : 'Rusak'}
                                         </Badge>
                                     </div>
 
@@ -412,9 +532,8 @@ export default function Return() {
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            onClick={() => setStep(2)}
+                                            onClick={() => setStep(3)}
                                         >
-                                            <ArrowLeft className="mr-2 h-4 w-4" />
                                             Kembali
                                         </Button>
                                         <Button

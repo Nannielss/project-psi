@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\MajorController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialPickupController;
 use App\Http\Controllers\ProfileController;
@@ -31,7 +32,7 @@ Route::get('tool-loans/borrow', [ToolLoanController::class, 'borrowPage'])->name
 Route::get('tool-loans/return', [ToolLoanController::class, 'returnPage'])->name('tool-loans.return');
 Route::post('tool-loans/verify-student', [ToolLoanController::class, 'verifyStudent'])->name('tool-loans.verify-student');
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
-Route::post('tool-loans/get-active-loan', [ToolLoanController::class, 'getActiveLoan'])->name('tool-loans.get-active-loan');
+Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');
 Route::post('tool-loans/borrow', [ToolLoanController::class, 'storeBorrow'])->name('tool-loans.store-borrow');
 Route::post('tool-loans/return', [ToolLoanController::class, 'storeReturn'])->name('tool-loans.store-return');
 
@@ -74,6 +75,11 @@ Route::middleware('auth')->group(function () {
         Route::post('material-pickups', [MaterialPickupController::class, 'store'])->name('material-pickups.store');
         Route::post('material-pickups/verify-qr', [MaterialPickupController::class, 'verifyQR'])->name('material-pickups.verify-qr');
     });
+
+    // Maintenance routes
+    Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+    Route::post('maintenance/{unit}/repair', [MaintenanceController::class, 'markAsRepaired'])->name('maintenance.repair');
+    Route::post('maintenance/{unit}/scrap', [MaintenanceController::class, 'markAsScrapped'])->name('maintenance.scrap');
 
 });
 

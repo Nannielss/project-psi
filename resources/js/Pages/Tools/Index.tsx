@@ -80,7 +80,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         description: '',
     });
     const [unitFormData, setUnitFormData] = useState({
-        condition: 'good' as 'good' | 'damaged' | 'service',
+        condition: 'good' as 'good' | 'damaged' | 'scrapped',
         description: '',
     });
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -319,12 +319,12 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
             good: 'default',
             damaged: 'destructive',
-            service: 'secondary',
+            scrapped: 'secondary',
         };
         const labels: Record<string, string> = {
             good: 'Baik',
             damaged: 'Rusak',
-            service: 'Servis',
+            scrapped: 'Rusak Total',
         };
         return (
             <Badge variant={variants[condition] || 'outline'}>
@@ -689,8 +689,8 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                                 <Badge variant="destructive">{tool.damaged_count || 0}</Badge>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-muted-foreground">Servis:</span>
-                                                                <Badge variant="secondary">{tool.service_count || 0}</Badge>
+                                                                <span className="text-xs text-muted-foreground">Rusak Total:</span>
+                                                                <Badge variant="secondary">{tool.scrapped_count || 0}</Badge>
                                                             </div>
                                                         </div>
                                                     </TableCell>
@@ -1023,7 +1023,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                     <Label htmlFor="unit_condition">Kondisi</Label>
                                     <Select
                                         value={unitFormData.condition}
-                                        onValueChange={(value: 'good' | 'damaged' | 'service') =>
+                                        onValueChange={(value: 'good' | 'damaged' | 'scrapped') =>
                                             setUnitFormData({ ...unitFormData, condition: value })
                                         }
                                     >
@@ -1033,7 +1033,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                         <SelectContent>
                                             <SelectItem value="good">Baik</SelectItem>
                                             <SelectItem value="damaged">Rusak</SelectItem>
-                                            <SelectItem value="service">Servis</SelectItem>
+                                            <SelectItem value="scrapped">Rusak Total</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1079,7 +1079,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                     <Label htmlFor="edit_unit_condition">Kondisi</Label>
                                     <Select
                                         value={unitFormData.condition}
-                                        onValueChange={(value: 'good' | 'damaged' | 'service') =>
+                                        onValueChange={(value: 'good' | 'damaged' | 'scrapped') =>
                                             setUnitFormData({ ...unitFormData, condition: value })
                                         }
                                     >
@@ -1089,7 +1089,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                         <SelectContent>
                                             <SelectItem value="good">Baik</SelectItem>
                                             <SelectItem value="damaged">Rusak</SelectItem>
-                                            <SelectItem value="service">Servis</SelectItem>
+                                            <SelectItem value="scrapped">Rusak Total</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

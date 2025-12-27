@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { QrCode, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Camera } from 'lucide-react';
+import { X, Camera, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Student, ToolUnit } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -20,6 +19,12 @@ interface BorrowPageProps {
     };
 }
 
+interface SelectedTool {
+    toolUnit: ToolUnit;
+    photo: File | null;
+    photoPreview: string | null;
+}
+
 export default function Borrow() {
     const { flash } = usePage().props as BorrowPageProps;
     const [step, setStep] = useState(1);
@@ -29,19 +34,19 @@ export default function Borrow() {
     const [studentVerificationError, setStudentVerificationError] = useState('');
 
     const [unitCode, setUnitCode] = useState('');
-    const [verifiedToolUnit, setVerifiedToolUnit] = useState<ToolUnit | null>(null);
     const [isVerifyingTool, setIsVerifyingTool] = useState(false);
     const [toolVerificationError, setToolVerificationError] = useState('');
+    const [selectedTools, setSelectedTools] = useState<SelectedTool[]>([]);
 
-    const [borrowPhoto, setBorrowPhoto] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
-    const [notes, setNotes] = useState('');
+    const [studentPhoto, setStudentPhoto] = useState<File | null>(null);
+    const [studentPhotoPreview, setStudentPhotoPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
+    const [currentToolIndex, setCurrentToolIndex] = useState<number | null>(null);
+    const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+    const [isStudentPhotoDialogOpen, setIsStudentPhotoDialogOpen] = useState(false);
 
-    // Show toast notifications
     useEffect(() => {
         if (flash?.success) {
             toast.success(flash.success);
@@ -67,15 +72,11 @@ export default function Borrow() {
                 setVerifiedStudent(response.data.student);
                 setNis(nisValue);
                 setStep(2);
-                toast.success('Identitas siswa berhasil diverifikasi');
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Siswa dengan NIS tersebut tidak ditemukan';
+            const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
             setStudentVerificationError(errorMessage);
             setVerifiedStudent(null);
-            if (error.response?.status === 422 && error.response?.data?.active_loan) {
-                toast.error(errorMessage);
-            }
         } finally {
             setIsVerifyingStudent(false);
         }
@@ -84,7 +85,13 @@ export default function Borrow() {
     const handleVerifyTool = async (codeToVerify?: string) => {
         const codeValue = codeToVerify || unitCode.trim();
         if (!codeValue) {
-            setToolVerificationError('Masukkan kode alat terlebih dahulu');
+            setToolVerificationError('Masukkan kode alat');
+            return;
+        }
+
+        // Check if already added
+        if (selectedTools.some(t => t.toolUnit.unit_code === codeValue)) {
+            setToolVerificationError('Alat ini sudah ditambahkan');
             return;
         }
 
@@ -94,18 +101,128 @@ export default function Borrow() {
         try {
             const response = await axios.post('/tool-loans/verify-tool', { unit_code: codeValue });
             if (response.data.success) {
-                setVerifiedToolUnit(response.data.tool_unit);
-                setUnitCode(codeValue);
-                setStep(3);
-                toast.success('Alat berhasil diverifikasi');
+                const newTool: SelectedTool = {
+                    toolUnit: response.data.tool_unit,
+                    photo: null,
+                    photoPreview: null,
+                };
+                setSelectedTools([...selectedTools, newTool]);
+                setUnitCode('');
+                toast.success('Alat ditambahkan');
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Alat dengan kode tersebut tidak ditemukan';
+            const errorMessage = error.response?.data?.message || 'Alat tidak ditemukan';
             setToolVerificationError(errorMessage);
-            setVerifiedToolUnit(null);
-            toast.error(errorMessage);
         } finally {
             setIsVerifyingTool(false);
+        }
+    };
+
+    const handleRemoveTool = (index: number) => {
+        setSelectedTools(selectedTools.filter((_, i) => i !== index));
+    };
+
+    const handlePhotoCapture = (file: File) => {
+        if (currentToolIndex !== null) {
+            const updatedTools = [...selectedTools];
+            updatedTools[currentToolIndex].photo = file;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                updatedTools[currentToolIndex].photoPreview = reader.result as string;
+                setSelectedTools(updatedTools);
+            };
+            reader.readAsDataURL(file);
+            setIsPhotoDialogOpen(false);
+            setCurrentToolIndex(null);
+        }
+    };
+
+    const handleStudentPhotoCapture = (file: File) => {
+        setStudentPhoto(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setStudentPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+        setIsStudentPhotoDialogOpen(false);
+    };
+
+    const handleOpenPhotoDialog = (index: number) => {
+        setCurrentToolIndex(index);
+        setIsPhotoDialogOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!verifiedStudent || selectedTools.length === 0) {
+            toast.error('Pastikan siswa dan minimal 1 alat sudah dipilih');
+            return;
+        }
+
+        if (!studentPhoto) {
+            toast.error('Foto wajah siswa wajib diambil');
+            return;
+        }
+
+        // Check all tools have photos
+        const toolsWithoutPhoto = selectedTools.filter(t => !t.photo);
+        if (toolsWithoutPhoto.length > 0) {
+            toast.error('Semua alat harus memiliki foto');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const results = [];
+            // Submit all tools sequentially
+            for (let i = 0; i < selectedTools.length; i++) {
+                const tool = selectedTools[i];
+                try {
+                    const formData = new FormData();
+                    formData.append('student_id', verifiedStudent.id.toString());
+                    formData.append('tool_unit_id', tool.toolUnit.id.toString());
+                    // Use student photo for all tools (or use tool photo if preferred)
+                    formData.append('borrow_photo', studentPhoto);
+
+                    await axios.post('/tool-loans/borrow', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                    results.push({ success: true, tool: tool.toolUnit.unit_code });
+                } catch (error: any) {
+                    const errorMessage = error.response?.data?.message || error.message;
+                    results.push({ success: false, tool: tool.toolUnit.unit_code, error: errorMessage });
+                }
+            }
+
+            const successCount = results.filter(r => r.success).length;
+            const failedCount = results.filter(r => !r.success).length;
+
+            if (successCount > 0) {
+                toast.success(`${successCount} alat berhasil dipinjam`);
+            }
+            if (failedCount > 0) {
+                toast.error(`${failedCount} alat gagal dipinjam`);
+            }
+
+            // Reset form if all successful
+            if (failedCount === 0) {
+                setStep(1);
+                setNis('');
+                setVerifiedStudent(null);
+                setSelectedTools([]);
+                setUnitCode('');
+                setStudentPhoto(null);
+                setStudentPhotoPreview(null);
+            } else {
+                // Remove successfully submitted tools
+                const failedTools = results.filter(r => !r.success).map(r => r.tool);
+                setSelectedTools(selectedTools.filter(t => failedTools.includes(t.toolUnit.unit_code)));
+            }
+        } catch (error: any) {
+            toast.error('Terjadi kesalahan saat menyimpan data');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -117,84 +234,19 @@ export default function Borrow() {
         }
     };
 
-    const handleQRScanError = (error: string) => {
-        toast.error(error);
-    };
-
-    const handlePhotoCapture = (file: File) => {
-        setBorrowPhoto(file);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setPhotoPreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!verifiedStudent || !verifiedToolUnit || !borrowPhoto) {
-            toast.error('Pastikan semua data sudah lengkap');
-            return;
-        }
-
-        setIsSubmitting(true);
-
-        const formData = new FormData();
-        formData.append('student_id', verifiedStudent.id.toString());
-        formData.append('tool_unit_id', verifiedToolUnit.id.toString());
-        formData.append('borrow_photo', borrowPhoto);
-        if (notes) {
-            formData.append('notes', notes);
-        }
-
-        router.post('/tool-loans/borrow', formData, {
-            forceFormData: true,
-            onSuccess: () => {
-                toast.success('Peminjaman alat berhasil dicatat');
-                // Reset form
-                setStep(1);
-                setNis('');
-                setVerifiedStudent(null);
-                setUnitCode('');
-                setVerifiedToolUnit(null);
-                setBorrowPhoto(null);
-                setPhotoPreview(null);
-                setNotes('');
-            },
-            onError: (errors) => {
-                setIsSubmitting(false);
-                if (errors.student_id) {
-                    toast.error(errors.student_id);
-                } else if (errors.tool_unit_id) {
-                    toast.error(errors.tool_unit_id);
-                } else if (errors.borrow_photo) {
-                    toast.error(errors.borrow_photo);
-                } else {
-                    toast.error('Terjadi kesalahan saat menyimpan data');
-                }
-            },
-        });
-    };
-
     return (
         <div className="min-h-screen bg-background">
             <Head title="Peminjaman Alat" />
 
             <div className="container mx-auto px-4 py-8 max-w-4xl">
                 <div className="space-y-6">
-                    <div className="space-y-4">
+                    <div>
                         <Link href="/tool-loans">
-                            <Button variant="ghost" className="mb-2">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Kembali ke Menu
+                            <Button variant="ghost" className="mb-4">
+                                ← Kembali
                             </Button>
                         </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Peminjaman Alat</h1>
-                            <p className="text-muted-foreground">
-                                Scan QR identitas siswa dan alat, lalu ambil foto untuk meminjam alat
-                            </p>
-                        </div>
+                        <h1 className="text-3xl font-bold">Peminjaman Alat</h1>
                     </div>
 
                     {/* Step Indicator */}
@@ -214,7 +266,7 @@ export default function Borrow() {
                             }`}>
                                 {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
                             </div>
-                            <span className="font-medium">Verifikasi Alat</span>
+                            <span className="font-medium">Tambah Alat</span>
                         </div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -231,18 +283,14 @@ export default function Borrow() {
                     {step === 1 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Verifikasi Identitas Siswa</CardTitle>
-                                <CardDescription>
-                                    Scan QR code atau masukkan NIS siswa
-                                </CardDescription>
+                                <CardTitle>Scan NIS Siswa</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="nis">NIS Siswa</Label>
+                                    <Label>NIS</Label>
                                     <div className="flex gap-2">
                                         <Input
-                                            id="nis"
-                                            placeholder="Masukkan NIS atau scan QR code"
+                                            placeholder="Masukkan NIS atau scan QR"
                                             value={nis}
                                             onChange={(e) => {
                                                 setNis(e.target.value);
@@ -262,53 +310,34 @@ export default function Borrow() {
                                         >
                                             {isVerifyingStudent ? 'Memverifikasi...' : 'Verifikasi'}
                                         </Button>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>atau</span>
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            size="sm"
                                             onClick={() => {
                                                 setScannerType('student');
                                                 setIsScannerOpen(true);
                                             }}
                                         >
-                                            <Camera className="mr-2 h-4 w-4" />
-                                            Scan QR Code
+                                            <Camera className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
 
                                 {studentVerificationError && (
-                                    <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md">
-                                        <XCircle className="h-4 w-4" />
-                                        <span className="text-sm">{studentVerificationError}</span>
+                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                        {studentVerificationError}
                                     </div>
                                 )}
 
                                 {verifiedStudent && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-green-900 dark:text-green-100">
-                                                Identitas Terverifikasi
-                                            </p>
-                                            <p className="text-sm text-green-700 dark:text-green-300">
-                                                {verifiedStudent.name} (NIS: {verifiedStudent.nis})
-                                            </p>
-                                            {verifiedStudent.major && (
-                                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                                    {verifiedStudent.major.name} - {verifiedStudent.class}
-                                                </p>
-                                            )}
-                                        </div>
+                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                                        <p className="font-medium">{verifiedStudent.name}</p>
+                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                         <Button
                                             onClick={() => setStep(2)}
-                                            disabled={!verifiedStudent}
+                                            className="mt-3"
                                         >
                                             Lanjutkan
-                                            <ArrowRight className="ml-2 h-4 w-4" />
                                         </Button>
                                     </div>
                                 )}
@@ -316,27 +345,23 @@ export default function Borrow() {
                         </Card>
                     )}
 
-                    {/* Step 2: Verify Tool */}
+                    {/* Step 2: Add Tools */}
                     {step === 2 && verifiedStudent && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Verifikasi Alat</CardTitle>
-                                <CardDescription>
-                                    Scan QR code atau masukkan kode unit alat
-                                </CardDescription>
+                                <CardTitle>Tambah Alat</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="p-3 bg-muted rounded-md">
-                                    <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
+                                    <p className="text-sm font-medium">{verifiedStudent.name}</p>
                                     <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="unit_code">Kode Unit Alat</Label>
+                                    <Label>Kode Unit</Label>
                                     <div className="flex gap-2">
                                         <Input
-                                            id="unit_code"
-                                            placeholder="Masukkan kode unit atau scan QR code"
+                                            placeholder="Masukkan kode atau scan QR"
                                             value={unitCode}
                                             onChange={(e) => {
                                                 setUnitCode(e.target.value);
@@ -354,54 +379,61 @@ export default function Borrow() {
                                             onClick={() => handleVerifyTool()}
                                             disabled={isVerifyingTool}
                                         >
-                                            {isVerifyingTool ? 'Memverifikasi...' : 'Verifikasi'}
+                                            {isVerifyingTool ? '...' : 'Tambah'}
                                         </Button>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>atau</span>
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            size="sm"
                                             onClick={() => {
                                                 setScannerType('tool');
                                                 setIsScannerOpen(true);
                                             }}
                                         >
-                                            <Camera className="mr-2 h-4 w-4" />
-                                            Scan QR Code
+                                            <Camera className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
 
                                 {toolVerificationError && (
-                                    <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md">
-                                        <XCircle className="h-4 w-4" />
-                                        <span className="text-sm">{toolVerificationError}</span>
+                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                        {toolVerificationError}
                                     </div>
                                 )}
 
-                                {verifiedToolUnit && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-green-900 dark:text-green-100">
-                                                Alat Terverifikasi
-                                            </p>
-                                            <p className="text-sm text-green-700 dark:text-green-300">
-                                                {verifiedToolUnit.tool?.name} - Unit: {verifiedToolUnit.unit_code}
-                                            </p>
-                                            <Badge variant="secondary" className="mt-1">
-                                                Kondisi: {verifiedToolUnit.condition}
-                                            </Badge>
-                                        </div>
-                                        <Button
-                                            onClick={() => setStep(3)}
-                                            disabled={!verifiedToolUnit}
-                                        >
-                                            Lanjutkan
-                                            <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Button>
+                                {selectedTools.length > 0 && (
+                                    <div className="space-y-2">
+                                        <Label>Daftar Alat ({selectedTools.length})</Label>
+                                        {selectedTools.map((tool, index) => (
+                                            <div key={index} className="p-3 border rounded-md flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <p className="font-medium">{tool.toolUnit.tool?.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{tool.toolUnit.unit_code}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {tool.photoPreview ? (
+                                                        <img src={tool.photoPreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                                                    ) : (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleOpenPhotoDialog(index)}
+                                                        >
+                                                            <Camera className="h-4 w-4 mr-1" />
+                                                            Foto
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveTool(index)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
 
@@ -409,50 +441,51 @@ export default function Borrow() {
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => setStep(1)}
+                                        onClick={() => {
+                                            setStep(1);
+                                            setSelectedTools([]);
+                                        }}
                                     >
-                                        <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Kembali
+                                        Ganti Siswa
                                     </Button>
+                                    {selectedTools.length > 0 && (
+                                        <Button
+                                            onClick={() => setStep(3)}
+                                            className="flex-1"
+                                        >
+                                            Lanjutkan ({selectedTools.length} alat)
+                                        </Button>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
                     )}
 
-                    {/* Step 3: Photo & Submit */}
-                    {step === 3 && verifiedStudent && verifiedToolUnit && (
+                    {/* Step 3: Submit */}
+                    {step === 3 && verifiedStudent && selectedTools.length > 0 && (
                         <form onSubmit={handleSubmit}>
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Ambil Foto & Submit</CardTitle>
-                                    <CardDescription>
-                                        Ambil foto wajah siswa bersama alat yang dipinjam
-                                    </CardDescription>
+                                    <CardTitle>Konfirmasi Peminjaman</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="p-3 bg-muted rounded-md">
-                                        <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
-                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                        <p className="text-sm font-medium mt-2">Alat: {verifiedToolUnit.tool?.name}</p>
-                                        <p className="text-xs text-muted-foreground">Unit: {verifiedToolUnit.unit_code}</p>
+                                        <p className="font-medium">{verifiedStudent.name}</p>
+                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <Label>Foto Wajah + Alat</Label>
-                                        {photoPreview ? (
-                                            <div className="space-y-3">
-                                                <img
-                                                    src={photoPreview}
-                                                    alt="Preview"
-                                                    className="w-full max-w-md rounded-lg border"
-                                                />
+                                    <div className="space-y-2">
+                                        <Label>Foto Wajah Siswa *</Label>
+                                        {studentPhotoPreview ? (
+                                            <div className="space-y-2">
+                                                <img src={studentPhotoPreview} alt="Foto Wajah" className="w-48 h-48 object-cover rounded border" />
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => {
-                                                        setBorrowPhoto(null);
-                                                        setPhotoPreview(null);
+                                                        setStudentPhoto(null);
+                                                        setStudentPhotoPreview(null);
                                                     }}
                                                 >
                                                     Ganti Foto
@@ -462,23 +495,22 @@ export default function Borrow() {
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                onClick={() => setIsPhotoDialogOpen(true)}
+                                                onClick={() => setIsStudentPhotoDialogOpen(true)}
                                             >
-                                                <Camera className="mr-2 h-4 w-4" />
-                                                Ambil Foto
+                                                <Camera className="h-4 w-4 mr-2" />
+                                                Ambil Foto Wajah
                                             </Button>
                                         )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="notes">Catatan (Opsional)</Label>
-                                        <Textarea
-                                            id="notes"
-                                            placeholder="Catatan tambahan untuk peminjaman"
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                            rows={3}
-                                        />
+                                        <Label>Alat yang Dipinjam ({selectedTools.length})</Label>
+                                        {selectedTools.map((tool, index) => (
+                                            <div key={index} className="p-3 border rounded-md">
+                                                <p className="font-medium">{tool.toolUnit.tool?.name}</p>
+                                                <p className="text-sm text-muted-foreground">{tool.toolUnit.unit_code}</p>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     <div className="flex gap-2 pt-4">
@@ -487,12 +519,11 @@ export default function Borrow() {
                                             variant="outline"
                                             onClick={() => setStep(2)}
                                         >
-                                            <ArrowLeft className="mr-2 h-4 w-4" />
                                             Kembali
                                         </Button>
                                         <Button
                                             type="submit"
-                                            disabled={isSubmitting || !borrowPhoto}
+                                            disabled={isSubmitting || !studentPhoto}
                                             className="flex-1"
                                         >
                                             {isSubmitting ? 'Menyimpan...' : 'Simpan Peminjaman'}
@@ -502,27 +533,33 @@ export default function Borrow() {
                             </Card>
                         </form>
                     )}
-
-                    {/* QR Scanner Dialog */}
-                    <QRScanner
-                        open={isScannerOpen}
-                        onClose={() => setIsScannerOpen(false)}
-                        onScanSuccess={handleQRScanSuccess}
-                        onScanError={handleQRScanError}
-                    />
-
-                    {/* Photo Capture Dialog */}
-                    <PhotoCapture
-                        open={isPhotoDialogOpen}
-                        onClose={() => setIsPhotoDialogOpen(false)}
-                        onCapture={handlePhotoCapture}
-                        title="Ambil Foto Wajah + Alat"
-                        description="Posisikan wajah siswa dan alat dalam frame kamera"
-                    />
                 </div>
             </div>
+
+            <QRScanner
+                open={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onScanSuccess={handleQRScanSuccess}
+                onScanError={(error) => toast.error(error)}
+            />
+
+            <PhotoCapture
+                open={isPhotoDialogOpen}
+                onClose={() => {
+                    setIsPhotoDialogOpen(false);
+                    setCurrentToolIndex(null);
+                }}
+                onCapture={handlePhotoCapture}
+                title="Ambil Foto Alat"
+            />
+
+            <PhotoCapture
+                open={isStudentPhotoDialogOpen}
+                onClose={() => setIsStudentPhotoDialogOpen(false)}
+                onCapture={handleStudentPhotoCapture}
+                title="Ambil Foto Wajah Siswa"
+                description="Posisikan wajah siswa dalam frame kamera"
+            />
         </div>
     );
 }
-
-

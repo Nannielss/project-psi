@@ -43,8 +43,8 @@ class ToolController extends Controller
             'units as damaged_count' => function ($q) {
                 $q->where('condition', 'damaged');
             },
-            'units as service_count' => function ($q) {
-                $q->where('condition', 'service');
+            'units as scrapped_count' => function ($q) {
+                $q->where('condition', 'scrapped');
             },
         ]);
 
@@ -186,7 +186,7 @@ class ToolController extends Controller
     public function addUnit(Request $request, Tool $tool)
     {
         $validated = $request->validate([
-            'condition' => 'required|in:good,damaged,service',
+            'condition' => 'required|in:good,damaged,scrapped',
             'description' => 'nullable|string',
         ]);
 
@@ -217,7 +217,7 @@ class ToolController extends Controller
         }
 
         $validated = $request->validate([
-            'condition' => 'required|in:good,damaged,service',
+            'condition' => 'required|in:good,damaged,scrapped',
             'description' => 'nullable|string',
         ]);
 

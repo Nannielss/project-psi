@@ -105,7 +105,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
     {
       title: "Maintenance",
-      url: "#",
+      url: "/maintenance",
       icon: Settings,
     },
   ]
