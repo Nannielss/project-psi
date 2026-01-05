@@ -287,29 +287,7 @@ export default function Borrow() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>NIS</Label>
                                     <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Masukkan NIS atau scan QR"
-                                            value={nis}
-                                            onChange={(e) => {
-                                                setNis(e.target.value);
-                                                setStudentVerificationError('');
-                                            }}
-                                            onKeyPress={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleVerifyStudent();
-                                                }
-                                            }}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            type="button"
-                                            onClick={() => handleVerifyStudent()}
-                                            disabled={isVerifyingStudent}
-                                        >
-                                            {isVerifyingStudent ? 'Memverifikasi...' : 'Verifikasi'}
-                                        </Button>
                                         <Button
                                             type="button"
                                             variant="outline"
@@ -318,7 +296,7 @@ export default function Borrow() {
                                                 setIsScannerOpen(true);
                                             }}
                                         >
-                                            <Camera className="h-4 w-4" />
+                                            <Camera className="h-100 w-100" />
                                         </Button>
                                     </div>
                                 </div>

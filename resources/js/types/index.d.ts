@@ -7,6 +7,8 @@ export interface User {
     email?: string;
     email_verified_at?: string;
     avatar?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Major {

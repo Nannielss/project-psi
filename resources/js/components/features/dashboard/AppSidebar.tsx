@@ -116,7 +116,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ...baseNavItems,
         {
           title: "Manajemen User",
-          url: "#",
+          url: "/users",
           icon: UserCog,
         },
       ]

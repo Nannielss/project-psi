@@ -10,6 +10,7 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\ToolLoanController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -80,6 +81,11 @@ Route::middleware('auth')->group(function () {
     Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
     Route::post('maintenance/{unit}/repair', [MaintenanceController::class, 'markAsRepaired'])->name('maintenance.repair');
     Route::post('maintenance/{unit}/scrap', [MaintenanceController::class, 'markAsScrapped'])->name('maintenance.scrap');
+
+    // Users CRUD - kepala jurusan only
+    Route::middleware('role:kajur')->group(function () {
+        Route::resource('users', UserController::class);
+    });
 
 });
 
