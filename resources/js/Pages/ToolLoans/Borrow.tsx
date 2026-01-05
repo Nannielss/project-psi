@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, Camera, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Student, ToolUnit } from '@/types';
@@ -238,15 +237,18 @@ export default function Borrow() {
         <div className="min-h-screen bg-background">
             <Head title="Peminjaman Alat" />
 
-            <div className="container mx-auto px-4 py-8 max-w-4xl">
+            <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
                 <div className="space-y-6">
-                    <div>
+                    <div className="space-y-2">
                         <Link href="/tool-loans">
-                            <Button variant="ghost" className="mb-4">
+                            <Button variant="ghost" className="mb-2">
                                 ← Kembali
                             </Button>
                         </Link>
-                        <h1 className="text-3xl font-bold">Peminjaman Alat</h1>
+                        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Peminjaman Alat</h1>
+                        <p className="text-muted-foreground text-sm sm:text-base">
+                            Scan QR code untuk memverifikasi siswa dan menambah alat yang dipinjam
+                        </p>
                     </div>
 
                     {/* Step Indicator */}
@@ -281,41 +283,55 @@ export default function Borrow() {
 
                     {/* Step 1: Verify Student */}
                     {step === 1 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Scan NIS Siswa</CardTitle>
+                        <Card className="border-2">
+                            <CardHeader className="text-center pb-6">
+                                <CardTitle className="text-2xl mb-2">Verifikasi Siswa</CardTitle>
+                                <CardDescription className="text-base">
+                                    Scan QR code NIS siswa untuk memulai peminjaman
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setScannerType('student');
-                                                setIsScannerOpen(true);
-                                            }}
-                                        >
-                                            <Camera className="h-100 w-100" />
-                                        </Button>
-                                    </div>
+                            <CardContent className="space-y-6">
+                                <div className="flex flex-col items-center justify-center py-8">
+                                    <Button
+                                        type="button"
+                                        size="lg"
+                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                        onClick={() => {
+                                            setScannerType('student');
+                                            setIsScannerOpen(true);
+                                        }}
+                                    >
+                                        <Camera className="h-12 w-12" />
+                                    </Button>
+                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
+                                        Tekan tombol kamera untuk memindai QR code NIS siswa
+                                    </p>
                                 </div>
 
                                 {studentVerificationError && (
-                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
                                         {studentVerificationError}
                                     </div>
                                 )}
 
                                 {verifiedStudent && (
-                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <p className="font-medium">{verifiedStudent.name}</p>
-                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
+                                        <div className="flex items-center justify-center mb-2">
+                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <div className="text-center space-y-1">
+                                            <p className="text-lg font-semibold">{verifiedStudent.name}</p>
+                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                            {verifiedStudent.major && (
+                                                <p className="text-xs text-muted-foreground">{verifiedStudent.major.name}</p>
+                                            )}
+                                        </div>
                                         <Button
                                             onClick={() => setStep(2)}
-                                            className="mt-3"
+                                            className="w-full mt-4"
+                                            size="lg"
                                         >
-                                            Lanjutkan
+                                            Lanjutkan ke Pilih Alat
                                         </Button>
                                     </div>
                                 )}
@@ -325,97 +341,92 @@ export default function Borrow() {
 
                     {/* Step 2: Add Tools */}
                     {step === 2 && verifiedStudent && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Tambah Alat</CardTitle>
+                        <Card className="border-2">
+                            <CardHeader className="text-center pb-6">
+                                <CardTitle className="text-2xl mb-2">Tambah Alat</CardTitle>
+                                <CardDescription className="text-base">
+                                    Scan QR code alat yang akan dipinjam
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="p-3 bg-muted rounded-md">
-                                    <p className="text-sm font-medium">{verifiedStudent.name}</p>
-                                    <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Kode Unit</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Masukkan kode atau scan QR"
-                                            value={unitCode}
-                                            onChange={(e) => {
-                                                setUnitCode(e.target.value);
-                                                setToolVerificationError('');
-                                            }}
-                                            onKeyPress={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleVerifyTool();
-                                                }
-                                            }}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            type="button"
-                                            onClick={() => handleVerifyTool()}
-                                            disabled={isVerifyingTool}
-                                        >
-                                            {isVerifyingTool ? '...' : 'Tambah'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setScannerType('tool');
-                                                setIsScannerOpen(true);
-                                            }}
-                                        >
-                                            <Camera className="h-4 w-4" />
-                                        </Button>
+                            <CardContent className="space-y-6">
+                                <div className="p-4 bg-muted/50 rounded-lg border">
+                                    <div className="text-center space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
+                                        <p className="font-semibold">{verifiedStudent.name}</p>
+                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                     </div>
                                 </div>
 
+                                <div className="flex flex-col items-center justify-center py-6">
+                                    <Button
+                                        type="button"
+                                        size="lg"
+                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                        onClick={() => {
+                                            setScannerType('tool');
+                                            setIsScannerOpen(true);
+                                        }}
+                                        disabled={isVerifyingTool}
+                                    >
+                                        <Camera className="h-12 w-12" />
+                                    </Button>
+                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
+                                        Tekan tombol kamera untuk memindai QR code alat
+                                    </p>
+                                </div>
+
                                 {toolVerificationError && (
-                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
                                         {toolVerificationError}
                                     </div>
                                 )}
 
                                 {selectedTools.length > 0 && (
-                                    <div className="space-y-2">
-                                        <Label>Daftar Alat ({selectedTools.length})</Label>
-                                        {selectedTools.map((tool, index) => (
-                                            <div key={index} className="p-3 border rounded-md flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <p className="font-medium">{tool.toolUnit.tool?.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{tool.toolUnit.unit_code}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {tool.photoPreview ? (
-                                                        <img src={tool.photoPreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
-                                                    ) : (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-base font-semibold">Daftar Alat</Label>
+                                            <Badge variant="secondary" className="text-sm">
+                                                {selectedTools.length} alat
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {selectedTools.map((tool, index) => (
+                                                <div key={index} className="p-4 border-2 rounded-lg flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                                    <div className="flex-1 space-y-1">
+                                                        <p className="font-medium">{tool.toolUnit.tool?.name}</p>
+                                                        <p className="text-sm text-muted-foreground">Kode: {tool.toolUnit.unit_code}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {tool.photoPreview ? (
+                                                            <img src={tool.photoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg border" />
+                                                        ) : (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleOpenPhotoDialog(index)}
+                                                            >
+                                                                <Camera className="h-4 w-4 mr-1" />
+                                                                Foto
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             type="button"
-                                                            variant="outline"
+                                                            variant="ghost"
                                                             size="sm"
-                                                            onClick={() => handleOpenPhotoDialog(index)}
+                                                            onClick={() => handleRemoveTool(index)}
+                                                            className="text-destructive hover:text-destructive"
                                                         >
-                                                            <Camera className="h-4 w-4 mr-1" />
-                                                            Foto
+                                                            <Trash2 className="h-4 w-4" />
                                                         </Button>
-                                                    )}
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleRemoveTool(index)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="flex gap-2 pt-4">
+                                <div className="flex gap-3 pt-4">
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -423,6 +434,7 @@ export default function Borrow() {
                                             setStep(1);
                                             setSelectedTools([]);
                                         }}
+                                        className="flex-1"
                                     >
                                         Ganti Siswa
                                     </Button>
@@ -430,6 +442,7 @@ export default function Borrow() {
                                         <Button
                                             onClick={() => setStep(3)}
                                             className="flex-1"
+                                            size="lg"
                                         >
                                             Lanjutkan ({selectedTools.length} alat)
                                         </Button>
@@ -442,25 +455,36 @@ export default function Borrow() {
                     {/* Step 3: Submit */}
                     {step === 3 && verifiedStudent && selectedTools.length > 0 && (
                         <form onSubmit={handleSubmit}>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Konfirmasi Peminjaman</CardTitle>
+                            <Card className="border-2">
+                                <CardHeader className="text-center pb-6">
+                                    <CardTitle className="text-2xl mb-2">Konfirmasi Peminjaman</CardTitle>
+                                    <CardDescription className="text-base">
+                                        Ambil foto wajah siswa dan konfirmasi data peminjaman
+                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="p-3 bg-muted rounded-md">
-                                        <p className="font-medium">{verifiedStudent.name}</p>
-                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                <CardContent className="space-y-6">
+                                    <div className="p-4 bg-muted/50 rounded-lg border">
+                                        <div className="text-center space-y-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Siswa</p>
+                                            <p className="font-semibold text-lg">{verifiedStudent.name}</p>
+                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label>Foto Wajah Siswa *</Label>
+                                    <div className="space-y-3">
+                                        <Label className="text-base font-semibold">Foto Wajah Siswa *</Label>
                                         {studentPhotoPreview ? (
-                                            <div className="space-y-2">
-                                                <img src={studentPhotoPreview} alt="Foto Wajah" className="w-48 h-48 object-cover rounded border" />
+                                            <div className="flex flex-col items-center space-y-4">
+                                                <div className="relative">
+                                                    <img 
+                                                        src={studentPhotoPreview} 
+                                                        alt="Foto Wajah" 
+                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg" 
+                                                    />
+                                                </div>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
-                                                    size="sm"
                                                     onClick={() => {
                                                         setStudentPhoto(null);
                                                         setStudentPhotoPreview(null);
@@ -470,32 +494,46 @@ export default function Borrow() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setIsStudentPhotoDialogOpen(true)}
-                                            >
-                                                <Camera className="h-4 w-4 mr-2" />
-                                                Ambil Foto Wajah
-                                            </Button>
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="lg"
+                                                    className="h-32 w-32 rounded-full"
+                                                    onClick={() => setIsStudentPhotoDialogOpen(true)}
+                                                >
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <Camera className="h-8 w-8" />
+                                                        <span className="text-sm">Ambil Foto</span>
+                                                    </div>
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label>Alat yang Dipinjam ({selectedTools.length})</Label>
-                                        {selectedTools.map((tool, index) => (
-                                            <div key={index} className="p-3 border rounded-md">
-                                                <p className="font-medium">{tool.toolUnit.tool?.name}</p>
-                                                <p className="text-sm text-muted-foreground">{tool.toolUnit.unit_code}</p>
-                                            </div>
-                                        ))}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-base font-semibold">Alat yang Dipinjam</Label>
+                                            <Badge variant="secondary" className="text-sm">
+                                                {selectedTools.length} alat
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {selectedTools.map((tool, index) => (
+                                                <div key={index} className="p-4 border-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                                    <p className="font-medium">{tool.toolUnit.tool?.name}</p>
+                                                    <p className="text-sm text-muted-foreground">Kode: {tool.toolUnit.unit_code}</p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <div className="flex gap-2 pt-4">
+                                    <div className="flex gap-3 pt-4">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={() => setStep(2)}
+                                            className="flex-1"
                                         >
                                             Kembali
                                         </Button>
@@ -503,6 +541,7 @@ export default function Borrow() {
                                             type="submit"
                                             disabled={isSubmitting || !studentPhoto}
                                             className="flex-1"
+                                            size="lg"
                                         >
                                             {isSubmitting ? 'Menyimpan...' : 'Simpan Peminjaman'}
                                         </Button>

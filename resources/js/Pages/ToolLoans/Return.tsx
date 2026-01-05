@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -190,9 +189,9 @@ export default function Return() {
         <div className="min-h-screen bg-background">
             <Head title="Pengembalian Alat" />
 
-            <div className="container mx-auto px-4 py-8 max-w-4xl">
+            <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
                 <div className="space-y-6">
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <Link href="/tool-loans">
                             <Button variant="ghost" className="mb-2">
                                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -200,9 +199,9 @@ export default function Return() {
                             </Button>
                         </Link>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Pengembalian Alat</h1>
-                            <p className="text-muted-foreground">
-                                Verifikasi siswa, scan QR code alat yang akan dikembalikan, pilih kondisi alat, lalu ambil foto untuk mengembalikan alat
+                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Pengembalian Alat</h1>
+                            <p className="text-muted-foreground text-sm sm:text-base mt-1">
+                                Scan QR code untuk memverifikasi siswa dan alat yang akan dikembalikan
                             </p>
                         </div>
                     </div>
@@ -248,67 +247,55 @@ export default function Return() {
 
                     {/* Step 1: Verify Student */}
                     {step === 1 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Verifikasi Siswa</CardTitle>
-                                <CardDescription>
-                                    Scan QR code atau masukkan NIS siswa
+                        <Card className="border-2">
+                            <CardHeader className="text-center pb-6">
+                                <CardTitle className="text-2xl mb-2">Verifikasi Siswa</CardTitle>
+                                <CardDescription className="text-base">
+                                    Scan QR code NIS siswa untuk memulai pengembalian
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="nis">NIS</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            id="nis"
-                                            placeholder="Masukkan NIS atau scan QR code"
-                                            value={nis}
-                                            onChange={(e) => {
-                                                setNis(e.target.value);
-                                                setStudentVerificationError('');
-                                            }}
-                                            onKeyPress={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleVerifyStudent();
-                                                }
-                                            }}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            type="button"
-                                            onClick={() => handleVerifyStudent()}
-                                            disabled={isVerifyingStudent}
-                                        >
-                                            {isVerifyingStudent ? 'Memverifikasi...' : 'Verifikasi'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setScannerType('student');
-                                                setIsScannerOpen(true);
-                                            }}
-                                        >
-                                            <Camera className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                            <CardContent className="space-y-6">
+                                <div className="flex flex-col items-center justify-center py-8">
+                                    <Button
+                                        type="button"
+                                        size="lg"
+                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                        onClick={() => {
+                                            setScannerType('student');
+                                            setIsScannerOpen(true);
+                                        }}
+                                    >
+                                        <Camera className="h-12 w-12" />
+                                    </Button>
+                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
+                                        Tekan tombol kamera untuk memindai QR code NIS siswa
+                                    </p>
                                 </div>
 
                                 {studentVerificationError && (
-                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
                                         {studentVerificationError}
                                     </div>
                                 )}
 
                                 {verifiedStudent && (
-                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <p className="font-medium">{verifiedStudent.name}</p>
-                                        <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
+                                        <div className="flex items-center justify-center mb-2">
+                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <div className="text-center space-y-1">
+                                            <p className="text-lg font-semibold">{verifiedStudent.name}</p>
+                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                            {verifiedStudent.major && (
+                                                <p className="text-xs text-muted-foreground">{verifiedStudent.major.name}</p>
+                                            )}
+                                        </div>
                                         <Button
                                             onClick={() => setStep(2)}
-                                            className="mt-3"
+                                            className="w-full mt-4"
+                                            size="lg"
                                         >
-                                            Lanjutkan
+                                            Lanjutkan ke Scan Alat
                                         </Button>
                                     </div>
                                 )}
@@ -318,80 +305,72 @@ export default function Return() {
 
                     {/* Step 2: Verify Tool */}
                     {step === 2 && verifiedStudent && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Scan QR Code Alat</CardTitle>
-                                <CardDescription>
+                        <Card className="border-2">
+                            <CardHeader className="text-center pb-6">
+                                <CardTitle className="text-2xl mb-2">Scan QR Code Alat</CardTitle>
+                                <CardDescription className="text-base">
                                     Scan QR code alat yang akan dikembalikan
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="p-3 bg-muted rounded-md">
-                                    <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
-                                    <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="unit_code">Kode Unit Alat</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            id="unit_code"
-                                            placeholder="Masukkan kode unit atau scan QR code"
-                                            value={unitCode}
-                                            onChange={(e) => {
-                                                setUnitCode(e.target.value);
-                                                setToolVerificationError('');
-                                            }}
-                                            onKeyPress={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleVerifyTool();
-                                                }
-                                            }}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            type="button"
-                                            onClick={() => handleVerifyTool()}
-                                            disabled={isVerifyingTool}
-                                        >
-                                            {isVerifyingTool ? 'Memverifikasi...' : 'Verifikasi'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setScannerType('tool');
-                                                setIsScannerOpen(true);
-                                            }}
-                                        >
-                                            <Camera className="h-4 w-4" />
-                                        </Button>
+                            <CardContent className="space-y-6">
+                                <div className="p-4 bg-muted/50 rounded-lg border">
+                                    <div className="text-center space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
+                                        <p className="font-semibold">{verifiedStudent.name}</p>
+                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                     </div>
                                 </div>
 
+                                <div className="flex flex-col items-center justify-center py-6">
+                                    <Button
+                                        type="button"
+                                        size="lg"
+                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                        onClick={() => {
+                                            setScannerType('tool');
+                                            setIsScannerOpen(true);
+                                        }}
+                                        disabled={isVerifyingTool}
+                                    >
+                                        <Camera className="h-12 w-12" />
+                                    </Button>
+                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
+                                        Tekan tombol kamera untuk memindai QR code alat
+                                    </p>
+                                </div>
+
                                 {toolVerificationError && (
-                                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
                                         {toolVerificationError}
                                     </div>
                                 )}
 
                                 {activeLoan && (
-                                    <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <p className="font-medium">Pinjaman Ditemukan</p>
-                                        <p className="text-sm mt-1">{activeLoan.tool_unit?.tool?.name} - {activeLoan.tool_unit?.unit_code}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Dipinjam: {new Date(activeLoan.borrowed_at).toLocaleString('id-ID')}
-                                        </p>
+                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
+                                        <div className="flex items-center justify-center mb-2">
+                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <div className="text-center space-y-2">
+                                            <p className="font-semibold text-lg">Pinjaman Ditemukan</p>
+                                            <div className="space-y-1">
+                                                <p className="font-medium">{activeLoan.tool_unit?.tool?.name}</p>
+                                                <p className="text-sm text-muted-foreground">Kode: {activeLoan.tool_unit?.unit_code}</p>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    Dipinjam: {new Date(activeLoan.borrowed_at).toLocaleString('id-ID')}
+                                                </p>
+                                            </div>
+                                        </div>
                                         <Button
                                             onClick={() => setStep(3)}
-                                            className="mt-3"
+                                            className="w-full mt-4"
+                                            size="lg"
                                         >
-                                            Lanjutkan
+                                            Lanjutkan ke Pilih Kondisi
                                         </Button>
                                     </div>
                                 )}
 
-                                <div className="flex gap-2 pt-4">
+                                <div className="flex gap-3 pt-4">
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -400,6 +379,7 @@ export default function Return() {
                                             setUnitCode('');
                                             setActiveLoan(null);
                                         }}
+                                        className="w-full"
                                     >
                                         Ganti Siswa
                                     </Button>
@@ -410,28 +390,36 @@ export default function Return() {
 
                     {/* Step 3: Select Condition */}
                     {step === 3 && verifiedStudent && activeLoan && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Pilih Kondisi Alat</CardTitle>
-                                <CardDescription>
+                        <Card className="border-2">
+                            <CardHeader className="text-center pb-6">
+                                <CardTitle className="text-2xl mb-2">Pilih Kondisi Alat</CardTitle>
+                                <CardDescription className="text-base">
                                     Pilih kondisi alat saat dikembalikan
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="p-3 bg-muted rounded-md">
-                                    <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
-                                    <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                    <p className="text-sm font-medium mt-2">Alat: {activeLoan.tool_unit?.tool?.name}</p>
-                                    <p className="text-xs text-muted-foreground">Unit: {activeLoan.tool_unit?.unit_code}</p>
+                            <CardContent className="space-y-6">
+                                <div className="p-4 bg-muted/50 rounded-lg border">
+                                    <div className="space-y-2">
+                                        <div className="text-center space-y-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Siswa</p>
+                                            <p className="font-semibold">{verifiedStudent.name}</p>
+                                            <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                        </div>
+                                        <div className="border-t pt-2 mt-2">
+                                            <p className="text-sm font-medium text-muted-foreground text-center">Alat</p>
+                                            <p className="font-semibold text-center">{activeLoan.tool_unit?.tool?.name}</p>
+                                            <p className="text-xs text-muted-foreground text-center">Unit: {activeLoan.tool_unit?.unit_code}</p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="return_condition">Kondisi Alat</Label>
+                                <div className="space-y-3">
+                                    <Label htmlFor="return_condition" className="text-base font-semibold">Kondisi Alat</Label>
                                     <Select
                                         value={returnCondition}
                                         onValueChange={(value: 'good' | 'damaged') => setReturnCondition(value)}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-12">
                                             <SelectValue placeholder="Pilih kondisi alat" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -439,26 +427,28 @@ export default function Return() {
                                             <SelectItem value="damaged">Rusak</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground text-center">
                                         Kondisi alat akan diupdate setelah pengembalian dicatat
                                     </p>
                                 </div>
 
-                                    <div className="flex gap-2 pt-4">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setStep(2)}
-                                        >
-                                            Kembali
-                                        </Button>
-                                        <Button
-                                            onClick={() => setStep(4)}
-                                            className="flex-1"
-                                        >
-                                            Lanjutkan
-                                        </Button>
-                                    </div>
+                                <div className="flex gap-3 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setStep(2)}
+                                        className="flex-1"
+                                    >
+                                        Kembali
+                                    </Button>
+                                    <Button
+                                        onClick={() => setStep(4)}
+                                        className="flex-1"
+                                        size="lg"
+                                    >
+                                        Lanjutkan
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     )}
@@ -466,37 +456,48 @@ export default function Return() {
                     {/* Step 4: Photo & Submit */}
                     {step === 4 && verifiedStudent && activeLoan && (
                         <form onSubmit={handleSubmit}>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Ambil Foto & Submit</CardTitle>
-                                    <CardDescription>
-                                        Ambil foto alat yang dikembalikan
+                            <Card className="border-2">
+                                <CardHeader className="text-center pb-6">
+                                    <CardTitle className="text-2xl mb-2">Ambil Foto & Submit</CardTitle>
+                                    <CardDescription className="text-base">
+                                        Ambil foto alat yang dikembalikan dan konfirmasi data
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="p-3 bg-muted rounded-md">
-                                        <p className="text-sm font-medium">Siswa: {verifiedStudent.name}</p>
-                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                        <p className="text-sm font-medium mt-2">Alat: {activeLoan.tool_unit?.tool?.name}</p>
-                                        <p className="text-xs text-muted-foreground">Unit: {activeLoan.tool_unit?.unit_code}</p>
-                                        <Badge variant="secondary" className="mt-2">
-                                            Kondisi: {returnCondition === 'good' ? 'Baik' : 'Rusak'}
-                                        </Badge>
+                                <CardContent className="space-y-6">
+                                    <div className="p-4 bg-muted/50 rounded-lg border">
+                                        <div className="space-y-2">
+                                            <div className="text-center space-y-1">
+                                                <p className="text-sm font-medium text-muted-foreground">Siswa</p>
+                                                <p className="font-semibold">{verifiedStudent.name}</p>
+                                                <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                            </div>
+                                            <div className="border-t pt-2 mt-2">
+                                                <p className="text-sm font-medium text-muted-foreground text-center">Alat</p>
+                                                <p className="font-semibold text-center">{activeLoan.tool_unit?.tool?.name}</p>
+                                                <p className="text-xs text-muted-foreground text-center">Unit: {activeLoan.tool_unit?.unit_code}</p>
+                                                <div className="flex justify-center mt-2">
+                                                    <Badge variant="secondary">
+                                                        Kondisi: {returnCondition === 'good' ? 'Baik' : 'Rusak'}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <Label>Foto Alat</Label>
+                                        <Label className="text-base font-semibold">Foto Alat *</Label>
                                         {photoPreview ? (
-                                            <div className="space-y-3">
-                                                <img
-                                                    src={photoPreview}
-                                                    alt="Preview"
-                                                    className="w-full max-w-md rounded-lg border"
-                                                />
+                                            <div className="flex flex-col items-center space-y-4">
+                                                <div className="relative">
+                                                    <img
+                                                        src={photoPreview}
+                                                        alt="Preview"
+                                                        className="w-full max-w-md rounded-lg border-2 shadow-lg"
+                                                    />
+                                                </div>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
-                                                    size="sm"
                                                     onClick={() => {
                                                         setReturnPhoto(null);
                                                         setPhotoPreview(null);
@@ -506,33 +507,41 @@ export default function Return() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setIsPhotoDialogOpen(true)}
-                                            >
-                                                <Camera className="mr-2 h-4 w-4" />
-                                                Ambil Foto
-                                            </Button>
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="lg"
+                                                    className="h-32 w-32 rounded-full"
+                                                    onClick={() => setIsPhotoDialogOpen(true)}
+                                                >
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <Camera className="h-8 w-8" />
+                                                        <span className="text-sm">Ambil Foto</span>
+                                                    </div>
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="notes">Catatan (Opsional)</Label>
+                                        <Label htmlFor="notes" className="text-base font-semibold">Catatan (Opsional)</Label>
                                         <Textarea
                                             id="notes"
                                             placeholder="Catatan tambahan untuk pengembalian"
                                             value={notes}
                                             onChange={(e) => setNotes(e.target.value)}
-                                            rows={3}
+                                            rows={4}
+                                            className="resize-none"
                                         />
                                     </div>
 
-                                    <div className="flex gap-2 pt-4">
+                                    <div className="flex gap-3 pt-4">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={() => setStep(3)}
+                                            className="flex-1"
                                         >
                                             Kembali
                                         </Button>
@@ -540,6 +549,7 @@ export default function Return() {
                                             type="submit"
                                             disabled={isSubmitting || !returnPhoto}
                                             className="flex-1"
+                                            size="lg"
                                         >
                                             {isSubmitting ? 'Menyimpan...' : 'Simpan Pengembalian'}
                                         </Button>

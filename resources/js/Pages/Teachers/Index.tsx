@@ -29,6 +29,13 @@ import { Plus, Search, Edit, Trash2, X, ChevronDown, QrCode, Printer } from 'luc
 import { PageProps, Teacher, Subject } from '@/types';
 import { toast } from 'sonner';
 import { QRPrintDialog } from '@/components/features/qr/QRPrintDialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 interface TeachersPageProps extends PageProps {
     teachers: {
@@ -59,13 +66,21 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
     const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
     const [formData, setFormData] = useState({
         nip: '',
         name: '',
         subject_ids: [] as number[],
     });
+    const [subjectFormData, setSubjectFormData] = useState({
+        nama: '',
+        hari: '',
+        jam_mulai: '',
+        jam_selesai: '',
+    });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmittingSubject, setIsSubmittingSubject] = useState(false);
     const [isQRPrintOpen, setIsQRPrintOpen] = useState(false);
     const [qrPrintMode, setQrPrintMode] = useState<'single' | 'all'>('single');
     const [selectedTeacherForQR, setSelectedTeacherForQR] = useState<Teacher | null>(null);
@@ -157,6 +172,29 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
             } else {
                 return { ...prev, subject_ids: [...currentIds, subjectId] };
             }
+        });
+    };
+
+    const handleCreateSubject = (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmittingSubject(true);
+        
+        router.post('/subjects', subjectFormData, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsCreateSubjectOpen(false);
+                setSubjectFormData({ nama: '', hari: '', jam_mulai: '', jam_selesai: '' });
+                toast.success('Mata pelajaran berhasil ditambahkan.');
+                // Reload to refresh subjects list
+                router.reload({ only: ['subjects'] });
+                setIsSubmittingSubject(false);
+            },
+            onError: (errors) => {
+                console.error('Error creating subject:', errors);
+                toast.error('Gagal menambahkan mata pelajaran.');
+                setIsSubmittingSubject(false);
+            },
         });
     };
 
@@ -272,9 +310,20 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                     <div className="space-y-2">
                                         <Label>Mata Pelajaran</Label>
                                         {subjects.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground">
-                                                Belum ada mata pelajaran. Silakan tambahkan mata pelajaran terlebih dahulu.
-                                            </p>
+                                            <div className="space-y-2">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Belum ada mata pelajaran.
+                                                </p>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setIsCreateSubjectOpen(true)}
+                                                >
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    Tambah Mata Pelajaran
+                                                </Button>
+                                            </div>
                                         ) : (
                                             <Popover>
                                                 <PopoverTrigger asChild>
@@ -312,6 +361,20 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                                     </Label>
                                                                 </div>
                                                             ))}
+                                                        </div>
+                                                        <div className="border-t mt-2 pt-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="w-full justify-start"
+                                                                onClick={() => {
+                                                                    setIsCreateSubjectOpen(true);
+                                                                }}
+                                                            >
+                                                                <Plus className="mr-2 h-4 w-4" />
+                                                                Tambah Mata Pelajaran Baru
+                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </PopoverContent>
@@ -527,9 +590,20 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                 <div className="space-y-2">
                                     <Label>Mata Pelajaran</Label>
                                     {subjects.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">
-                                            Belum ada mata pelajaran. Silakan tambahkan mata pelajaran terlebih dahulu.
-                                        </p>
+                                        <div className="space-y-2">
+                                            <p className="text-sm text-muted-foreground">
+                                                Belum ada mata pelajaran.
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setIsCreateSubjectOpen(true)}
+                                            >
+                                                <Plus className="mr-2 h-4 w-4" />
+                                                Tambah Mata Pelajaran
+                                            </Button>
+                                        </div>
                                     ) : (
                                         <Popover>
                                             <PopoverTrigger asChild>
@@ -567,6 +641,20 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                                 </Label>
                                                             </div>
                                                         ))}
+                                                    </div>
+                                                    <div className="border-t mt-2 pt-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="w-full justify-start"
+                                                            onClick={() => {
+                                                                setIsCreateSubjectOpen(true);
+                                                            }}
+                                                        >
+                                                            <Plus className="mr-2 h-4 w-4" />
+                                                            Tambah Mata Pelajaran Baru
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             </PopoverContent>
@@ -633,6 +721,85 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                         : `Cetak QR Code untuk ${qrData.length} guru`}
                     type="teacher"
                 />
+
+                {/* Create Subject Dialog */}
+                <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Tambah Mata Pelajaran Baru</DialogTitle>
+                            <DialogDescription>
+                                Masukkan data mata pelajaran yang akan ditambahkan
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleCreateSubject}>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="subject_nama">Nama Mata Pelajaran</Label>
+                                    <Input
+                                        id="subject_nama"
+                                        placeholder="Contoh: Matematika, Fisika"
+                                        value={subjectFormData.nama}
+                                        onChange={(e) => setSubjectFormData({ ...subjectFormData, nama: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="subject_hari">Hari</Label>
+                                    <Select
+                                        value={subjectFormData.hari}
+                                        onValueChange={(value) => setSubjectFormData({ ...subjectFormData, hari: value })}
+                                        required
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih Hari" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((day) => (
+                                                <SelectItem key={day} value={day}>
+                                                    {day}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subject_jam_mulai">Jam Mulai</Label>
+                                        <Input
+                                            id="subject_jam_mulai"
+                                            type="time"
+                                            value={subjectFormData.jam_mulai}
+                                            onChange={(e) => setSubjectFormData({ ...subjectFormData, jam_mulai: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subject_jam_selesai">Jam Selesai</Label>
+                                        <Input
+                                            id="subject_jam_selesai"
+                                            type="time"
+                                            value={subjectFormData.jam_selesai}
+                                            onChange={(e) => setSubjectFormData({ ...subjectFormData, jam_selesai: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsCreateSubjectOpen(false)}
+                                >
+                                    Batal
+                                </Button>
+                                <Button type="submit" disabled={isSubmittingSubject}>
+                                    {isSubmittingSubject ? 'Menyimpan...' : 'Simpan'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </DashboardLayout>
     );

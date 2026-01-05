@@ -45,7 +45,16 @@ class SubjectController extends Controller
             'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
         ]);
 
-        Subject::create($validated);
+        $subject = Subject::create($validated);
+
+        // If request wants JSON response (e.g., from teacher page)
+        if ($request->wantsJson() || $request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Mata pelajaran berhasil ditambahkan.',
+                'subject' => $subject,
+            ]);
+        }
 
         return redirect()->route('subjects.index')
             ->with('success', 'Mata pelajaran berhasil ditambahkan.');
