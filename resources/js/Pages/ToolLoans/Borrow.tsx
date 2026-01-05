@@ -18,6 +18,14 @@ import axios from 'axios';
 import { QRScanner } from '@/components/features/qr/QRScanner';
 import { PhotoCapture } from '@/components/features/camera/PhotoCapture';
 import { ToolCodeAutocomplete } from '@/components/features/tools/ToolCodeAutocomplete';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 interface BorrowPageProps {
     flash?: {
@@ -37,6 +45,8 @@ export default function Borrow() {
     const [step, setStep] = useState(1);
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
+    const [pendingStudent, setPendingStudent] = useState<Student | null>(null);
+    const [isConfirmStudentOpen, setIsConfirmStudentOpen] = useState(false);
     const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [studentVerificationError, setStudentVerificationError] = useState('');
 
@@ -111,14 +121,15 @@ export default function Borrow() {
         try {
             const response = await axios.post('/tool-loans/verify-student', { nis: nisValue });
             if (response.data.success) {
-                setVerifiedStudent(response.data.student);
+                setPendingStudent(response.data.student);
                 setNis(nisValue);
-                setStep(2);
+                setIsConfirmStudentOpen(true);
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
             setStudentVerificationError(errorMessage);
             setVerifiedStudent(null);
+            setPendingStudent(null);
         } finally {
             setIsVerifyingStudent(false);
         }
@@ -158,6 +169,19 @@ export default function Borrow() {
         } finally {
             setIsVerifyingTool(false);
         }
+    };
+
+    const handleConfirmStudent = () => {
+        if (!pendingStudent) return;
+        setVerifiedStudent(pendingStudent);
+        setPendingStudent(null);
+        setIsConfirmStudentOpen(false);
+        setStep(2);
+    };
+
+    const handleCancelStudent = () => {
+        setPendingStudent(null);
+        setIsConfirmStudentOpen(false);
     };
 
     const handleToolAutocompleteSelect = async (tool: { unit_code: string; tool_name: string; available_stock: number }) => {
@@ -602,6 +626,37 @@ export default function Borrow() {
                     )}
                 </div>
             </div>
+
+        <Dialog
+            open={isConfirmStudentOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    handleCancelStudent();
+                }
+            }}
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Konfirmasi Siswa</DialogTitle>
+                    <DialogDescription>Pastikan data siswa sudah benar sebelum melanjutkan.</DialogDescription>
+                </DialogHeader>
+                {pendingStudent && (
+                    <div className="space-y-2">
+                        <p className="text-lg font-semibold text-center">{pendingStudent.name}</p>
+                        <p className="text-center text-muted-foreground">NIS: {pendingStudent.nis}</p>
+                        {pendingStudent.major && (
+                            <p className="text-center text-muted-foreground text-sm">{pendingStudent.major.name}</p>
+                        )}
+                    </div>
+                )}
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={handleCancelStudent}>
+                        Batal
+                    </Button>
+                    <Button onClick={handleConfirmStudent}>Konfirmasi</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         </div>
     );
 }
