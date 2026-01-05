@@ -31,6 +31,8 @@ Route::get('/history', [ToolLoanController::class, 'history'])->middleware(['aut
 Route::get('tool-loans', [ToolLoanController::class, 'indexPage'])->name('tool-loans.index-page');
 Route::get('tool-loans/borrow', [ToolLoanController::class, 'borrowPage'])->name('tool-loans.borrow');
 Route::get('tool-loans/return', [ToolLoanController::class, 'returnPage'])->name('tool-loans.return');
+Route::get('tool-loans/teachers', [ToolLoanController::class, 'getTeachers'])->name('tool-loans.teachers');
+Route::get('tool-loans/search-tools', [ToolLoanController::class, 'searchTools'])->name('tool-loans.search-tools');
 Route::post('tool-loans/verify-student', [ToolLoanController::class, 'verifyStudent'])->name('tool-loans.verify-student');
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
 Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');
@@ -45,6 +47,7 @@ Route::middleware('auth')->group(function () {
     // Students routes - specific routes before resource
     Route::get('students/for-qr', [StudentController::class, 'forQr'])->name('students.for-qr');
     Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
+    Route::get('students/import/template', [StudentController::class, 'downloadTemplate'])->name('students.import.template');
     Route::resource('students', StudentController::class);
 
     Route::resource('majors', MajorController::class);

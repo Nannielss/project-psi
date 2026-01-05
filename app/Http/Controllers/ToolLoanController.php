@@ -112,6 +112,62 @@ class ToolLoanController extends Controller
     }
 
     /**
+     * Get all teachers with their subjects (public API).
+     */
+    public function getTeachers()
+    {
+        $teachers = Teacher::with('subjects')->orderBy('name')->get();
+
+        return response()->json([
+            'success' => true,
+            'teachers' => $teachers,
+        ]);
+    }
+
+    /**
+     * Search tools by partial code or name match (public API).
+     */
+    public function searchTools(Request $request)
+    {
+        $request->validate([
+            'query' => 'required|string|min:1',
+        ]);
+
+        $query = $request->input('query');
+
+        // Search tool units by partial code match OR tool name match
+        $toolUnits = ToolUnit::where('unit_code', 'like', "%{$query}%")
+            ->orWhereHas('tool', function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%");
+            })
+            ->with('tool')
+            ->get()
+            ->map(function ($unit) {
+                // Calculate available stock (units with condition='good' and not borrowed)
+                $availableStock = ToolUnit::where('tool_id', $unit->tool_id)
+                    ->where('condition', 'good')
+                    ->whereDoesntHave('toolLoans', function ($q) {
+                        $q->where('status', 'borrowed');
+                    })
+                    ->count();
+
+                return [
+                    'unit_code' => $unit->unit_code,
+                    'tool_name' => $unit->tool->name,
+                    'available_stock' => $availableStock,
+                    'tool_id' => $unit->tool_id,
+                ];
+            })
+            ->unique('unit_code')
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'tools' => $toolUnits,
+        ]);
+    }
+
+    /**
      * Store a new tool loan (borrow).
      */
     public function storeBorrow(Request $request)
@@ -120,6 +176,8 @@ class ToolLoanController extends Controller
             'student_id' => 'required|exists:students,id',
             'tool_unit_id' => 'required|exists:tool_units,id',
             'borrow_photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'teacher_id' => 'nullable|exists:teachers,id',
+            'subject_id' => 'nullable|exists:subjects,id',
             'notes' => 'nullable|string',
         ]);
 
@@ -147,14 +205,24 @@ class ToolLoanController extends Controller
         $photoPath = $request->file('borrow_photo')->store('tool-loans/borrow', 'public');
 
         // Create loan record
-        ToolLoan::create([
+        $loanData = [
             'student_id' => $validated['student_id'],
             'tool_unit_id' => $validated['tool_unit_id'],
             'borrow_photo' => $photoPath,
             'borrowed_at' => now(),
             'status' => 'borrowed',
             'notes' => $validated['notes'] ?? null,
-        ]);
+        ];
+
+        // Only add teacher_id and subject_id if they have values
+        if (!empty($validated['teacher_id'])) {
+            $loanData['teacher_id'] = $validated['teacher_id'];
+        }
+        if (!empty($validated['subject_id'])) {
+            $loanData['subject_id'] = $validated['subject_id'];
+        }
+
+        ToolLoan::create($loanData);
 
         return redirect()->route('tool-loans.borrow')
             ->with('success', 'Peminjaman alat berhasil dicatat.');

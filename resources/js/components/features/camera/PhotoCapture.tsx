@@ -15,6 +15,7 @@ interface PhotoCaptureProps {
     onCapture: (file: File) => void;
     title?: string;
     description?: string;
+    inline?: boolean;
 }
 
 export function PhotoCapture({
@@ -23,6 +24,7 @@ export function PhotoCapture({
     onCapture,
     title = 'Ambil Foto',
     description = 'Posisikan wajah dan alat dalam frame kamera',
+    inline = false,
 }: PhotoCaptureProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -108,8 +110,10 @@ export function PhotoCapture({
                         type: 'image/jpeg',
                     });
                     onCapture(file);
-                    stopCamera();
-                    onClose();
+                    if (!inline) {
+                        stopCamera();
+                        onClose();
+                    }
                 }
             },
             'image/jpeg',
@@ -127,6 +131,57 @@ export function PhotoCapture({
         setError(null);
         onClose();
     };
+
+    if (inline) {
+        return (
+            <div className="space-y-4">
+                <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '300px', maxHeight: '400px' }}>
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
+
+                    {error && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
+                            <div className="text-center p-4">
+                                <CameraOff className="h-12 w-12 text-destructive mx-auto mb-2" />
+                                <p className="text-white font-medium mb-4">{error}</p>
+                                <Button onClick={startCamera} variant="outline">
+                                    Coba Lagi
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {!error && isCapturing && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg pointer-events-none">
+                            <div className="text-center p-4">
+                                <div className="animate-pulse">
+                                    <Camera className="h-12 w-12 text-primary mx-auto mb-2" />
+                                    <p className="text-white font-medium">Siap mengambil foto...</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={switchCamera} disabled={!isCapturing}>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Ganti Kamera
+                    </Button>
+                    <Button onClick={capturePhoto} disabled={!isCapturing || !!error}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Ambil Foto
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>

@@ -179,7 +179,10 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         e.preventDefault();
         setIsSubmittingSubject(true);
         
-        router.post('/subjects', subjectFormData, {
+        router.post('/subjects', {
+            ...subjectFormData,
+            from: 'teachers', // Add parameter to indicate request from teachers page
+        }, {
             preserveState: true,
             preserveScroll: true,
             onSuccess: () => {

@@ -4,12 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { X, Camera, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
-import { Student, ToolUnit } from '@/types';
+import { Student, ToolUnit, Teacher, Subject } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { QRScanner } from '@/components/features/qr/QRScanner';
 import { PhotoCapture } from '@/components/features/camera/PhotoCapture';
+import { ToolCodeAutocomplete } from '@/components/features/tools/ToolCodeAutocomplete';
 
 interface BorrowPageProps {
     flash?: {
@@ -42,9 +50,12 @@ export default function Borrow() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
-    const [currentToolIndex, setCurrentToolIndex] = useState<number | null>(null);
-    const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
-    const [isStudentPhotoDialogOpen, setIsStudentPhotoDialogOpen] = useState(false);
+
+    // Teacher and Subject state
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+    const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
 
     useEffect(() => {
         if (flash?.success) {
@@ -54,6 +65,38 @@ export default function Borrow() {
             toast.error(flash.error);
         }
     }, [flash]);
+
+    // Load teachers on mount
+    useEffect(() => {
+        loadTeachers();
+    }, []);
+
+    // Filter subjects when teacher changes
+    useEffect(() => {
+        if (selectedTeacherId) {
+            const teacher = teachers.find((t) => t.id.toString() === selectedTeacherId);
+            if (teacher && teacher.subjects) {
+                setFilteredSubjects(teacher.subjects);
+            } else {
+                setFilteredSubjects([]);
+            }
+            setSelectedSubjectId(''); // Reset subject when teacher changes
+        } else {
+            setFilteredSubjects([]);
+            setSelectedSubjectId('');
+        }
+    }, [selectedTeacherId, teachers]);
+
+    const loadTeachers = async () => {
+        try {
+            const response = await axios.get('/tool-loans/teachers');
+            if (response.data.success) {
+                setTeachers(response.data.teachers);
+            }
+        } catch (error) {
+            console.error('Error loading teachers:', error);
+        }
+    };
 
     const handleVerifyStudent = async (nisToVerify?: string) => {
         const nisValue = nisToVerify || nis.trim();
@@ -89,7 +132,7 @@ export default function Borrow() {
         }
 
         // Check if already added
-        if (selectedTools.some(t => t.toolUnit.unit_code === codeValue)) {
+        if (selectedTools.some((t) => t.toolUnit.unit_code === codeValue)) {
             setToolVerificationError('Alat ini sudah ditambahkan');
             return;
         }
@@ -117,23 +160,12 @@ export default function Borrow() {
         }
     };
 
-    const handleRemoveTool = (index: number) => {
-        setSelectedTools(selectedTools.filter((_, i) => i !== index));
+    const handleToolAutocompleteSelect = async (tool: { unit_code: string; tool_name: string; available_stock: number }) => {
+        await handleVerifyTool(tool.unit_code);
     };
 
-    const handlePhotoCapture = (file: File) => {
-        if (currentToolIndex !== null) {
-            const updatedTools = [...selectedTools];
-            updatedTools[currentToolIndex].photo = file;
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                updatedTools[currentToolIndex].photoPreview = reader.result as string;
-                setSelectedTools(updatedTools);
-            };
-            reader.readAsDataURL(file);
-            setIsPhotoDialogOpen(false);
-            setCurrentToolIndex(null);
-        }
+    const handleRemoveTool = (index: number) => {
+        setSelectedTools(selectedTools.filter((_, i) => i !== index));
     };
 
     const handleStudentPhotoCapture = (file: File) => {
@@ -143,12 +175,6 @@ export default function Borrow() {
             setStudentPhotoPreview(reader.result as string);
         };
         reader.readAsDataURL(file);
-        setIsStudentPhotoDialogOpen(false);
-    };
-
-    const handleOpenPhotoDialog = (index: number) => {
-        setCurrentToolIndex(index);
-        setIsPhotoDialogOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -163,13 +189,6 @@ export default function Borrow() {
             return;
         }
 
-        // Check all tools have photos
-        const toolsWithoutPhoto = selectedTools.filter(t => !t.photo);
-        if (toolsWithoutPhoto.length > 0) {
-            toast.error('Semua alat harus memiliki foto');
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
@@ -181,8 +200,13 @@ export default function Borrow() {
                     const formData = new FormData();
                     formData.append('student_id', verifiedStudent.id.toString());
                     formData.append('tool_unit_id', tool.toolUnit.id.toString());
-                    // Use student photo for all tools (or use tool photo if preferred)
                     formData.append('borrow_photo', studentPhoto);
+                    if (selectedTeacherId) {
+                        formData.append('teacher_id', selectedTeacherId);
+                    }
+                    if (selectedSubjectId) {
+                        formData.append('subject_id', selectedSubjectId);
+                    }
 
                     await axios.post('/tool-loans/borrow', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' },
@@ -194,8 +218,8 @@ export default function Borrow() {
                 }
             }
 
-            const successCount = results.filter(r => r.success).length;
-            const failedCount = results.filter(r => !r.success).length;
+            const successCount = results.filter((r) => r.success).length;
+            const failedCount = results.filter((r) => !r.success).length;
 
             if (successCount > 0) {
                 toast.success(`${successCount} alat berhasil dipinjam`);
@@ -204,19 +228,13 @@ export default function Borrow() {
                 toast.error(`${failedCount} alat gagal dipinjam`);
             }
 
-            // Reset form if all successful
+            // Redirect to tool-loans page if all successful
             if (failedCount === 0) {
-                setStep(1);
-                setNis('');
-                setVerifiedStudent(null);
-                setSelectedTools([]);
-                setUnitCode('');
-                setStudentPhoto(null);
-                setStudentPhotoPreview(null);
+                router.visit('/tool-loans');
             } else {
                 // Remove successfully submitted tools
-                const failedTools = results.filter(r => !r.success).map(r => r.tool);
-                setSelectedTools(selectedTools.filter(t => failedTools.includes(t.toolUnit.unit_code)));
+                const failedTools = results.filter((r) => !r.success).map((r) => r.tool);
+                setSelectedTools(selectedTools.filter((t) => failedTools.includes(t.toolUnit.unit_code)));
             }
         } catch (error: any) {
             toast.error('Terjadi kesalahan saat menyimpan data');
@@ -254,27 +272,33 @@ export default function Borrow() {
                     {/* Step Indicator */}
                     <div className="flex items-center gap-4 flex-wrap">
                         <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
+                            <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                                    step >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
+                                }`}
+                            >
                                 {step > 1 ? <CheckCircle2 className="h-4 w-4" /> : '1'}
                             </div>
                             <span className="font-medium">Verifikasi Siswa</span>
                         </div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
+                            <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                                    step >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
+                                }`}
+                            >
                                 {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
                             </div>
                             <span className="font-medium">Tambah Alat</span>
                         </div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
+                            <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                                    step >= 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
+                                }`}
+                            >
                                 3
                             </div>
                             <span className="font-medium">Foto & Submit</span>
@@ -291,22 +315,13 @@ export default function Borrow() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="flex flex-col items-center justify-center py-8">
-                                    <Button
-                                        type="button"
-                                        size="lg"
-                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-                                        onClick={() => {
-                                            setScannerType('student');
-                                            setIsScannerOpen(true);
-                                        }}
-                                    >
-                                        <Camera className="h-12 w-12" />
-                                    </Button>
-                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
-                                        Tekan tombol kamera untuk memindai QR code NIS siswa
-                                    </p>
-                                </div>
+                                <QRScanner
+                                    open={true}
+                                    onClose={() => {}}
+                                    onScanSuccess={handleQRScanSuccess}
+                                    onScanError={(error) => toast.error(error)}
+                                    inline={true}
+                                />
 
                                 {studentVerificationError && (
                                     <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
@@ -326,11 +341,7 @@ export default function Borrow() {
                                                 <p className="text-xs text-muted-foreground">{verifiedStudent.major.name}</p>
                                             )}
                                         </div>
-                                        <Button
-                                            onClick={() => setStep(2)}
-                                            className="w-full mt-4"
-                                            size="lg"
-                                        >
+                                        <Button onClick={() => setStep(2)} className="w-full mt-4" size="lg">
                                             Lanjutkan ke Pilih Alat
                                         </Button>
                                     </div>
@@ -345,7 +356,7 @@ export default function Borrow() {
                             <CardHeader className="text-center pb-6">
                                 <CardTitle className="text-2xl mb-2">Tambah Alat</CardTitle>
                                 <CardDescription className="text-base">
-                                    Scan QR code alat yang akan dipinjam
+                                    Scan QR code atau cari kode alat yang akan dipinjam
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -357,22 +368,40 @@ export default function Borrow() {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col items-center justify-center py-6">
-                                    <Button
-                                        type="button"
-                                        size="lg"
-                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-                                        onClick={() => {
-                                            setScannerType('tool');
-                                            setIsScannerOpen(true);
-                                        }}
-                                        disabled={isVerifyingTool}
-                                    >
-                                        <Camera className="h-12 w-12" />
-                                    </Button>
-                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
-                                        Tekan tombol kamera untuk memindai QR code alat
-                                    </p>
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label className="text-base font-semibold mb-2 block">Scan QR Code Alat</Label>
+                                        <QRScanner
+                                            open={true}
+                                            onClose={() => {}}
+                                            onScanSuccess={(decodedText) => {
+                                                setScannerType('tool');
+                                                handleVerifyTool(decodedText);
+                                            }}
+                                            onScanError={(error) => toast.error(error)}
+                                            inline={true}
+                                        />
+                                    </div>
+
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-background px-2 text-muted-foreground">atau</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label className="text-base font-semibold mb-2 block">Cari Kode atau Nama Alat</Label>
+                                        <ToolCodeAutocomplete
+                                            value={unitCode}
+                                            onChange={setUnitCode}
+                                            onSelect={handleToolAutocompleteSelect}
+                                            placeholder="Masukkan kode alat..."
+                                            disabled={isVerifyingTool}
+                                        />
+                                    </div>
                                 </div>
 
                                 {toolVerificationError && (
@@ -391,35 +420,23 @@ export default function Borrow() {
                                         </div>
                                         <div className="space-y-2 max-h-64 overflow-y-auto">
                                             {selectedTools.map((tool, index) => (
-                                                <div key={index} className="p-4 border-2 rounded-lg flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                                <div
+                                                    key={index}
+                                                    className="p-4 border-2 rounded-lg flex items-center justify-between hover:bg-muted/50 transition-colors"
+                                                >
                                                     <div className="flex-1 space-y-1">
                                                         <p className="font-medium">{tool.toolUnit.tool?.name}</p>
                                                         <p className="text-sm text-muted-foreground">Kode: {tool.toolUnit.unit_code}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {tool.photoPreview ? (
-                                                            <img src={tool.photoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg border" />
-                                                        ) : (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleOpenPhotoDialog(index)}
-                                                            >
-                                                                <Camera className="h-4 w-4 mr-1" />
-                                                                Foto
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleRemoveTool(index)}
-                                                            className="text-destructive hover:text-destructive"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveTool(index)}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
                                             ))}
                                         </div>
@@ -439,11 +456,7 @@ export default function Borrow() {
                                         Ganti Siswa
                                     </Button>
                                     {selectedTools.length > 0 && (
-                                        <Button
-                                            onClick={() => setStep(3)}
-                                            className="flex-1"
-                                            size="lg"
-                                        >
+                                        <Button onClick={() => setStep(3)} className="flex-1" size="lg">
                                             Lanjutkan ({selectedTools.length} alat)
                                         </Button>
                                     )}
@@ -459,7 +472,7 @@ export default function Borrow() {
                                 <CardHeader className="text-center pb-6">
                                     <CardTitle className="text-2xl mb-2">Konfirmasi Peminjaman</CardTitle>
                                     <CardDescription className="text-base">
-                                        Ambil foto wajah siswa dan konfirmasi data peminjaman
+                                        Ambil foto wajah siswa, pilih guru dan mapel, lalu konfirmasi data peminjaman
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -476,10 +489,10 @@ export default function Borrow() {
                                         {studentPhotoPreview ? (
                                             <div className="flex flex-col items-center space-y-4">
                                                 <div className="relative">
-                                                    <img 
-                                                        src={studentPhotoPreview} 
-                                                        alt="Foto Wajah" 
-                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg" 
+                                                    <img
+                                                        src={studentPhotoPreview}
+                                                        alt="Foto Wajah"
+                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg"
                                                     />
                                                 </div>
                                                 <Button
@@ -494,21 +507,63 @@ export default function Borrow() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="lg"
-                                                    className="h-32 w-32 rounded-full"
-                                                    onClick={() => setIsStudentPhotoDialogOpen(true)}
-                                                >
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <Camera className="h-8 w-8" />
-                                                        <span className="text-sm">Ambil Foto</span>
-                                                    </div>
-                                                </Button>
-                                            </div>
+                                            <PhotoCapture
+                                                open={true}
+                                                onClose={() => {}}
+                                                onCapture={handleStudentPhotoCapture}
+                                                title="Ambil Foto Wajah Siswa"
+                                                description="Posisikan wajah siswa dalam frame kamera"
+                                                inline={true}
+                                            />
                                         )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Label htmlFor="teacher" className="text-base font-semibold">
+                                            Pilih Guru
+                                        </Label>
+                                        <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                                            <SelectTrigger id="teacher" className="h-12">
+                                                <SelectValue placeholder="Pilih guru" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {teachers.map((teacher) => (
+                                                    <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                                        {teacher.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Label htmlFor="subject" className="text-base font-semibold">
+                                            Pilih Mapel
+                                        </Label>
+                                        <Select
+                                            value={selectedSubjectId}
+                                            onValueChange={setSelectedSubjectId}
+                                            disabled={!selectedTeacherId || filteredSubjects.length === 0}
+                                        >
+                                            <SelectTrigger id="subject" className="h-12">
+                                                <SelectValue
+                                                    placeholder={
+                                                        !selectedTeacherId
+                                                            ? 'Pilih guru terlebih dahulu'
+                                                            : filteredSubjects.length === 0
+                                                            ? 'Guru ini belum memiliki mapel'
+                                                            : 'Pilih mapel'
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {filteredSubjects.map((subject) => (
+                                                    <SelectItem key={subject.id} value={subject.id.toString()}>
+                                                        {subject.nama}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="space-y-3">
@@ -529,12 +584,7 @@ export default function Borrow() {
                                     </div>
 
                                     <div className="flex gap-3 pt-4">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setStep(2)}
-                                            className="flex-1"
-                                        >
+                                        <Button type="button" variant="outline" onClick={() => setStep(2)} className="flex-1">
                                             Kembali
                                         </Button>
                                         <Button
@@ -552,31 +602,6 @@ export default function Borrow() {
                     )}
                 </div>
             </div>
-
-            <QRScanner
-                open={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                onScanSuccess={handleQRScanSuccess}
-                onScanError={(error) => toast.error(error)}
-            />
-
-            <PhotoCapture
-                open={isPhotoDialogOpen}
-                onClose={() => {
-                    setIsPhotoDialogOpen(false);
-                    setCurrentToolIndex(null);
-                }}
-                onCapture={handlePhotoCapture}
-                title="Ambil Foto Alat"
-            />
-
-            <PhotoCapture
-                open={isStudentPhotoDialogOpen}
-                onClose={() => setIsStudentPhotoDialogOpen(false)}
-                onCapture={handleStudentPhotoCapture}
-                title="Ambil Foto Wajah Siswa"
-                description="Posisikan wajah siswa dalam frame kamera"
-            />
         </div>
     );
 }

@@ -101,7 +101,7 @@ class ToolController extends Controller
             ToolUnit::create([
                 'tool_id' => $tool->id,
                 'unit_number' => $i,
-                'unit_code' => $tool->code . '-' . $i,
+                'unit_code' => $tool->code . '.' . str_pad($i, 2, '0', STR_PAD_LEFT),
                 'condition' => 'good',
             ]);
         }
@@ -142,7 +142,7 @@ class ToolController extends Controller
         if ($oldCode !== $tool->code) {
             foreach ($tool->units as $unit) {
                 $unit->update([
-                    'unit_code' => $tool->code . '-' . $unit->unit_number,
+                    'unit_code' => $tool->code . '.' . str_pad($unit->unit_number, 2, '0', STR_PAD_LEFT),
                 ]);
             }
         }
@@ -197,7 +197,7 @@ class ToolController extends Controller
         ToolUnit::create([
             'tool_id' => $tool->id,
             'unit_number' => $nextUnitNumber,
-            'unit_code' => $tool->code . '-' . $nextUnitNumber,
+            'unit_code' => $tool->code . '.' . str_pad($nextUnitNumber, 2, '0', STR_PAD_LEFT),
             'condition' => $validated['condition'],
             'description' => $validated['description'] ?? null,
         ]);
@@ -310,7 +310,7 @@ class ToolController extends Controller
                     ToolUnit::create([
                         'tool_id' => $tool->id,
                         'unit_number' => $j,
-                        'unit_code' => $tool->code . '-' . $j,
+                        'unit_code' => $tool->code . '.' . str_pad($j, 2, '0', STR_PAD_LEFT),
                         'condition' => 'good',
                     ]);
                 }

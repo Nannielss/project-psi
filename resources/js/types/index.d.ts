@@ -104,6 +104,8 @@ export interface ToolLoan {
     id: number;
     student_id: number;
     tool_unit_id: number;
+    teacher_id?: number;
+    subject_id?: number;
     borrow_photo: string;
     return_photo?: string;
     borrowed_at: string;
@@ -115,6 +117,8 @@ export interface ToolLoan {
     updated_at: string;
     student?: Student;
     tool_unit?: ToolUnit;
+    teacher?: Teacher;
+    subject?: Subject;
 }
 
 export type PageProps<

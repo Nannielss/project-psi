@@ -15,9 +15,10 @@ interface QRScannerProps {
     onClose: () => void;
     onScanSuccess: (decodedText: string) => void;
     onScanError?: (error: string) => void;
+    inline?: boolean;
 }
 
-export function QRScanner({ open, onClose, onScanSuccess, onScanError }: QRScannerProps) {
+export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = false }: QRScannerProps) {
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -76,7 +77,9 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError }: QRScann
     const handleScanSuccess = (decodedText: string) => {
         stopScanner().then(() => {
             onScanSuccess(decodedText);
-            onClose();
+            if (!inline) {
+                onClose();
+            }
         });
     };
 
@@ -98,6 +101,45 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError }: QRScann
         setError(null);
         onClose();
     };
+
+    if (inline) {
+        return (
+            <div className="space-y-4">
+                <div className="relative">
+                    <div
+                        id={scannerId}
+                        className="w-full rounded-lg overflow-hidden bg-black"
+                        style={{ minHeight: '500px' }}
+                    />
+                    {error && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
+                            <div className="text-center p-4">
+                                <CameraOff className="h-12 w-12 text-destructive mx-auto mb-2" />
+                                <p className="text-white font-medium">{error}</p>
+                                <Button
+                                    onClick={startScanner}
+                                    className="mt-4"
+                                    variant="outline"
+                                >
+                                    Coba Lagi
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                    {!error && isScanning && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg pointer-events-none">
+                            <div className="text-center p-4">
+                                <div className="animate-pulse">
+                                    <Camera className="h-12 w-12 text-primary mx-auto mb-2" />
+                                    <p className="text-white font-medium">Memindai QR Code...</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>

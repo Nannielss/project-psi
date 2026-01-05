@@ -13,13 +13,14 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, ArrowRight, ArrowLeft, Camera } from 'lucide-react';
-import { Student, ToolLoan } from '@/types';
+import { Student, ToolLoan, PageProps } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { QRScanner } from '@/components/features/qr/QRScanner';
 import { PhotoCapture } from '@/components/features/camera/PhotoCapture';
+import { ToolCodeAutocomplete } from '@/components/features/tools/ToolCodeAutocomplete';
 
-interface ReturnPageProps {
+interface ReturnPageProps extends PageProps {
     flash?: {
         success?: string;
         error?: string;
@@ -42,7 +43,7 @@ export default function Return() {
     const [returnCondition, setReturnCondition] = useState<'good' | 'damaged'>('good');
     const [returnPhoto, setReturnPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+    const [isPhotoOpen, setIsPhotoOpen] = useState(false);
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -137,6 +138,11 @@ export default function Return() {
             setPhotoPreview(reader.result as string);
         };
         reader.readAsDataURL(file);
+        setIsPhotoOpen(false);
+    };
+
+    const handleToolAutocompleteSelect = async (tool: { unit_code: string; tool_name: string; available_stock: number }) => {
+        await handleVerifyTool(tool.unit_code);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -160,15 +166,8 @@ export default function Return() {
             forceFormData: true,
             onSuccess: () => {
                 toast.success('Pengembalian alat berhasil dicatat');
-                // Reset form
-                setStep(1);
-                setUnitCode('');
-                setVerifiedStudent(null);
-                setActiveLoan(null);
-                setReturnCondition('good');
-                setReturnPhoto(null);
-                setPhotoPreview(null);
-                setNotes('');
+                // Redirect to tool-loans page
+                router.visit('/tool-loans');
             },
             onError: (errors) => {
                 setIsSubmitting(false);
@@ -255,22 +254,16 @@ export default function Return() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="flex flex-col items-center justify-center py-8">
-                                    <Button
-                                        type="button"
-                                        size="lg"
-                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-                                        onClick={() => {
-                                            setScannerType('student');
-                                            setIsScannerOpen(true);
-                                        }}
-                                    >
-                                        <Camera className="h-12 w-12" />
-                                    </Button>
-                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
-                                        Tekan tombol kamera untuk memindai QR code NIS siswa
-                                    </p>
-                                </div>
+                                <QRScanner
+                                    open={true}
+                                    onClose={() => {}}
+                                    onScanSuccess={(decodedText) => {
+                                        setScannerType('student');
+                                        handleVerifyStudent(decodedText);
+                                    }}
+                                    onScanError={handleQRScanError}
+                                    inline={true}
+                                />
 
                                 {studentVerificationError && (
                                     <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
@@ -309,7 +302,7 @@ export default function Return() {
                             <CardHeader className="text-center pb-6">
                                 <CardTitle className="text-2xl mb-2">Scan QR Code Alat</CardTitle>
                                 <CardDescription className="text-base">
-                                    Scan QR code alat yang akan dikembalikan
+                                    Scan QR code atau cari kode alat yang akan dikembalikan
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -321,22 +314,40 @@ export default function Return() {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col items-center justify-center py-6">
-                                    <Button
-                                        type="button"
-                                        size="lg"
-                                        className="h-24 w-24 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-                                        onClick={() => {
-                                            setScannerType('tool');
-                                            setIsScannerOpen(true);
-                                        }}
-                                        disabled={isVerifyingTool}
-                                    >
-                                        <Camera className="h-12 w-12" />
-                                    </Button>
-                                    <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
-                                        Tekan tombol kamera untuk memindai QR code alat
-                                    </p>
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label className="text-base font-semibold mb-2 block">Scan QR Code Alat</Label>
+                                        <QRScanner
+                                            open={true}
+                                            onClose={() => {}}
+                                            onScanSuccess={(decodedText) => {
+                                                setScannerType('tool');
+                                                handleVerifyTool(decodedText);
+                                            }}
+                                            onScanError={handleQRScanError}
+                                            inline={true}
+                                        />
+                                    </div>
+
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-background px-2 text-muted-foreground">atau</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label className="text-base font-semibold mb-2 block">Cari Kode atau Nama Alat</Label>
+                                        <ToolCodeAutocomplete
+                                            value={unitCode}
+                                            onChange={setUnitCode}
+                                            onSelect={handleToolAutocompleteSelect}
+                                            placeholder="Masukkan kode alat..."
+                                            disabled={isVerifyingTool}
+                                        />
+                                    </div>
                                 </div>
 
                                 {toolVerificationError && (
@@ -492,7 +503,7 @@ export default function Return() {
                                                     <img
                                                         src={photoPreview}
                                                         alt="Preview"
-                                                        className="w-full max-w-md rounded-lg border-2 shadow-lg"
+                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg"
                                                     />
                                                 </div>
                                                 <Button
@@ -501,25 +512,36 @@ export default function Return() {
                                                     onClick={() => {
                                                         setReturnPhoto(null);
                                                         setPhotoPreview(null);
+                                                        setIsPhotoOpen(true);
                                                     }}
                                                 >
                                                     Ganti Foto
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="lg"
-                                                    className="h-32 w-32 rounded-full"
-                                                    onClick={() => setIsPhotoDialogOpen(true)}
-                                                >
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <Camera className="h-8 w-8" />
-                                                        <span className="text-sm">Ambil Foto</span>
+                                            <div>
+                                                {isPhotoOpen ? (
+                                                    <PhotoCapture
+                                                        open={true}
+                                                        onClose={() => setIsPhotoOpen(false)}
+                                                        onCapture={handlePhotoCapture}
+                                                        title="Ambil Foto Alat"
+                                                        description="Posisikan alat dalam frame kamera"
+                                                        inline={true}
+                                                    />
+                                                ) : (
+                                                    <div className="flex justify-center">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="lg"
+                                                            onClick={() => setIsPhotoOpen(true)}
+                                                        >
+                                                            <Camera className="mr-2 h-4 w-4" />
+                                                            Buka Kamera
+                                                        </Button>
                                                     </div>
-                                                </Button>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -559,22 +581,6 @@ export default function Return() {
                         </form>
                     )}
 
-                    {/* QR Scanner Dialog */}
-                    <QRScanner
-                        open={isScannerOpen}
-                        onClose={() => setIsScannerOpen(false)}
-                        onScanSuccess={handleQRScanSuccess}
-                        onScanError={handleQRScanError}
-                    />
-
-                    {/* Photo Capture Dialog */}
-                    <PhotoCapture
-                        open={isPhotoDialogOpen}
-                        onClose={() => setIsPhotoDialogOpen(false)}
-                        onCapture={handlePhotoCapture}
-                        title="Ambil Foto Alat"
-                        description="Posisikan alat dalam frame kamera"
-                    />
                 </div>
             </div>
         </div>

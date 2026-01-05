@@ -272,59 +272,7 @@ export default function Dashboard({
                         </Card>
                     )}
 
-                    {/* Quick Actions */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Akses Cepat</CardTitle>
-                            <CardDescription>
-                                Navigasi cepat ke halaman penting
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Link href="/history" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <History className="mr-2 h-4 w-4" />
-                                    Riwayat Peminjaman
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/tool-loans/borrow" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <Package className="mr-2 h-4 w-4" />
-                                    Peminjaman Alat
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/tool-loans/return" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <PackageCheck className="mr-2 h-4 w-4" />
-                                    Pengembalian Alat
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/maintenance" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <Wrench className="mr-2 h-4 w-4" />
-                                    Maintenance
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/tools" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <Box className="mr-2 h-4 w-4" />
-                                    Kelola Alat
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/materials" className="block">
-                                <Button variant="outline" className="w-full justify-start">
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
-                                    Kelola Bahan
-                                    <ArrowRight className="ml-auto h-4 w-4" />
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
+                    
                 </div>
 
                 {/* Recent Loans */}

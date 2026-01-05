@@ -11,6 +11,8 @@ class ToolLoan extends Model
     protected $fillable = [
         'student_id',
         'tool_unit_id',
+        'teacher_id',
+        'subject_id',
         'borrow_photo',
         'return_photo',
         'borrowed_at',
@@ -39,6 +41,22 @@ class ToolLoan extends Model
     public function toolUnit(): BelongsTo
     {
         return $this->belongsTo(ToolUnit::class);
+    }
+
+    /**
+     * Get the teacher associated with the loan.
+     */
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class);
+    }
+
+    /**
+     * Get the subject associated with the loan.
+     */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     /**

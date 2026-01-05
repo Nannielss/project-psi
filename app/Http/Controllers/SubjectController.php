@@ -47,13 +47,10 @@ class SubjectController extends Controller
 
         $subject = Subject::create($validated);
 
-        // If request wants JSON response (e.g., from teacher page)
-        if ($request->wantsJson() || $request->header('X-Inertia')) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Mata pelajaran berhasil ditambahkan.',
-                'subject' => $subject,
-            ]);
+        // If request comes from teachers page, redirect back to teachers
+        if ($request->has('from') && $request->from === 'teachers') {
+            return redirect()->route('teachers.index')
+                ->with('success', 'Mata pelajaran berhasil ditambahkan.');
         }
 
         return redirect()->route('subjects.index')
