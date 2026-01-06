@@ -135,13 +135,13 @@ export function PhotoCapture({
     if (inline) {
         return (
             <div className="space-y-4">
-                <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '300px', maxHeight: '400px' }}>
+                <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '500px' }}>
                     <video
                         ref={videoRef}
                         autoPlay
                         playsInline
                         muted
-                        className="w-full h-full object-cover"
+                        className="w-full h-full max-w-full max-h-full object-contain"
                     />
                     <canvas ref={canvasRef} className="hidden" />
 
@@ -191,13 +191,13 @@ export function PhotoCapture({
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                    <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+                    <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '400px', maxHeight: '600px' }}>
                         <video
                             ref={videoRef}
                             autoPlay
                             playsInline
                             muted
-                            className="w-full h-full object-cover"
+                            className="w-full h-full max-w-full max-h-full object-contain"
                         />
                         <canvas ref={canvasRef} className="hidden" />
 

@@ -11,7 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { X, Camera, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Camera, Trash2, CheckCircle2, ArrowRight, Package, Search, QrCode } from 'lucide-react';
 import { Student, ToolUnit, Teacher, Subject } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -26,6 +26,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 interface BorrowPageProps {
     flash?: {
@@ -49,6 +50,7 @@ export default function Borrow() {
     const [isConfirmStudentOpen, setIsConfirmStudentOpen] = useState(false);
     const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [studentVerificationError, setStudentVerificationError] = useState('');
+    const [qrScannerKey, setQrScannerKey] = useState(0);
 
     const [unitCode, setUnitCode] = useState('');
     const [isVerifyingTool, setIsVerifyingTool] = useState(false);
@@ -60,6 +62,43 @@ export default function Borrow() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
+
+    // Tab and Catalog state
+    const [activeTab, setActiveTab] = useState<'search' | 'qr'>('search');
+    const [toolsCatalog, setToolsCatalog] = useState<Array<{
+        id: number;
+        name: string;
+        code: string;
+        location: string;
+        photo: string | null;
+        description: string | null;
+        available_stock: number;
+    }>>([]);
+    const [filteredCatalog, setFilteredCatalog] = useState<Array<{
+        id: number;
+        name: string;
+        code: string;
+        location: string;
+        photo: string | null;
+        description: string | null;
+        available_stock: number;
+    }>>([]);
+    const [catalogSearch, setCatalogSearch] = useState('');
+    const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+    const [isCatalogDialogOpen, setIsCatalogDialogOpen] = useState(false);
+    const [selectedToolForCatalog, setSelectedToolForCatalog] = useState<{
+        id: number;
+        name: string;
+        code: string;
+    } | null>(null);
+    const [availableUnits, setAvailableUnits] = useState<Array<{
+        id: number;
+        unit_code: string;
+        unit_number: number;
+        condition: string;
+    }>>([]);
+    const [isLoadingUnits, setIsLoadingUnits] = useState(false);
+    const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
 
     // Teacher and Subject state
     const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -182,10 +221,129 @@ export default function Borrow() {
     const handleCancelStudent = () => {
         setPendingStudent(null);
         setIsConfirmStudentOpen(false);
+        // Reset QRScanner by changing key to force re-render
+        setQrScannerKey(prev => prev + 1);
+        setStudentVerificationError('');
     };
 
     const handleToolAutocompleteSelect = async (tool: { unit_code: string; tool_name: string; available_stock: number }) => {
         await handleVerifyTool(tool.unit_code);
+    };
+
+    const loadToolsCatalog = async () => {
+        setIsLoadingCatalog(true);
+        try {
+            const response = await axios.get('/tool-loans/tools-catalog');
+            if (response.data.success) {
+                setToolsCatalog(response.data.tools);
+                setFilteredCatalog(response.data.tools);
+            }
+        } catch (error) {
+            toast.error('Gagal memuat katalog alat');
+        } finally {
+            setIsLoadingCatalog(false);
+        }
+    };
+
+    const handleOpenCatalog = () => {
+        setIsCatalogDialogOpen(true);
+        setCatalogSearch('');
+        loadToolsCatalog();
+    };
+
+    // Filter catalog based on search
+    useEffect(() => {
+        if (!catalogSearch.trim()) {
+            setFilteredCatalog(toolsCatalog);
+        } else {
+            const searchLower = catalogSearch.toLowerCase();
+            setFilteredCatalog(toolsCatalog.filter(tool =>
+                tool.name.toLowerCase().includes(searchLower) ||
+                tool.code.toLowerCase().includes(searchLower) ||
+                tool.location.toLowerCase().includes(searchLower)
+            ));
+        }
+    }, [catalogSearch, toolsCatalog]);
+
+    const handleSelectToolFromCatalog = async (tool: { id: number; name: string; code: string }) => {
+        // Close catalog dialog first
+        setIsCatalogDialogOpen(false);
+        setCatalogSearch('');
+
+        // Set selected tool and load units
+        setSelectedToolForCatalog(tool);
+        setIsLoadingUnits(true);
+        setSelectedUnitIds([]);
+        try {
+            const response = await axios.get(`/tool-loans/tools/${tool.id}/available-units`);
+            if (response.data.success) {
+                setAvailableUnits(response.data.available_units);
+                if (response.data.available_units.length === 0) {
+                    toast.error('Tidak ada unit yang tersedia untuk alat ini');
+                    setSelectedToolForCatalog(null);
+                }
+            }
+        } catch (error) {
+            toast.error('Gagal memuat unit yang tersedia');
+            setSelectedToolForCatalog(null);
+        } finally {
+            setIsLoadingUnits(false);
+        }
+    };
+
+    const handleToggleUnitSelection = (unitId: string) => {
+        setSelectedUnitIds(prev => {
+            if (prev.includes(unitId)) {
+                return prev.filter(id => id !== unitId);
+            } else {
+                return [...prev, unitId];
+            }
+        });
+    };
+
+    const handleAddUnitFromCatalog = async () => {
+        if (selectedUnitIds.length === 0) {
+            toast.error('Pilih minimal satu unit terlebih dahulu');
+            return;
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Add all selected units
+        for (const unitId of selectedUnitIds) {
+            const unit = availableUnits.find(u => u.id.toString() === unitId);
+            if (!unit) {
+                errorCount++;
+                continue;
+            }
+
+            // Check if already added
+            if (selectedTools.some((t) => t.toolUnit.id === unit.id)) {
+                errorCount++;
+                continue;
+            }
+
+            try {
+                // Verify and add tool
+                await handleVerifyTool(unit.unit_code);
+                successCount++;
+            } catch (error) {
+                errorCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            toast.success(`${successCount} unit berhasil ditambahkan`);
+        }
+        if (errorCount > 0) {
+            toast.error(`${errorCount} unit gagal ditambahkan`);
+        }
+
+        // Close dialog
+        setSelectedToolForCatalog(null);
+        setAvailableUnits([]);
+        setSelectedUnitIds([]);
     };
 
     const handleRemoveTool = (index: number) => {
@@ -288,9 +446,6 @@ export default function Borrow() {
                             </Button>
                         </Link>
                         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Peminjaman Alat</h1>
-                        <p className="text-muted-foreground text-sm sm:text-base">
-                            Scan QR code untuk memverifikasi siswa dan menambah alat yang dipinjam
-                        </p>
                     </div>
 
                     {/* Step Indicator */}
@@ -332,14 +487,9 @@ export default function Borrow() {
                     {/* Step 1: Verify Student */}
                     {step === 1 && (
                         <Card className="border-2">
-                            <CardHeader className="text-center pb-6">
-                                <CardTitle className="text-2xl mb-2">Verifikasi Siswa</CardTitle>
-                                <CardDescription className="text-base">
-                                    Scan QR code NIS siswa untuk memulai peminjaman
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
+                            <CardContent className="space-y-6 pt-6">
                                 <QRScanner
+                                    key={qrScannerKey}
                                     open={true}
                                     onClose={() => {}}
                                     onScanSuccess={handleQRScanSuccess}
@@ -352,24 +502,6 @@ export default function Borrow() {
                                         {studentVerificationError}
                                     </div>
                                 )}
-
-                                {verifiedStudent && (
-                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
-                                        <div className="flex items-center justify-center mb-2">
-                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div className="text-center space-y-1">
-                                            <p className="text-lg font-semibold">{verifiedStudent.name}</p>
-                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                            {verifiedStudent.major && (
-                                                <p className="text-xs text-muted-foreground">{verifiedStudent.major.name}</p>
-                                            )}
-                                        </div>
-                                        <Button onClick={() => setStep(2)} className="w-full mt-4" size="lg">
-                                            Lanjutkan ke Pilih Alat
-                                        </Button>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -380,7 +512,7 @@ export default function Borrow() {
                             <CardHeader className="text-center pb-6">
                                 <CardTitle className="text-2xl mb-2">Tambah Alat</CardTitle>
                                 <CardDescription className="text-base">
-                                    Scan QR code atau cari kode alat yang akan dipinjam
+                                    Pilih metode untuk menambahkan alat yang akan dipinjam
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -392,40 +524,73 @@ export default function Borrow() {
                                     </div>
                                 </div>
 
+                                {/* Catalog Button */}
+                                <div className="flex justify-center">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={handleOpenCatalog}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <Package className="h-4 w-4 mr-2" />
+                                        Buka Katalog Alat
+                                    </Button>
+                                </div>
+
+                                {/* Tabs */}
+                                <div className="flex gap-2 border-b">
+                                    <Button
+                                        type="button"
+                                        variant={activeTab === 'search' ? 'default' : 'ghost'}
+                                        onClick={() => setActiveTab('search')}
+                                        className="rounded-b-none"
+                                    >
+                                        <Search className="h-4 w-4 mr-2" />
+                                        Cari Alat
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={activeTab === 'qr' ? 'default' : 'ghost'}
+                                        onClick={() => setActiveTab('qr')}
+                                        className="rounded-b-none"
+                                    >
+                                        <QrCode className="h-4 w-4 mr-2" />
+                                        Scan QR
+                                    </Button>
+                                </div>
+
+                                {/* Tab Content */}
                                 <div className="space-y-4">
-                                    <div>
-                                        <Label className="text-base font-semibold mb-2 block">Scan QR Code Alat</Label>
-                                        <QRScanner
-                                            open={true}
-                                            onClose={() => {}}
-                                            onScanSuccess={(decodedText) => {
-                                                setScannerType('tool');
-                                                handleVerifyTool(decodedText);
-                                            }}
-                                            onScanError={(error) => toast.error(error)}
-                                            inline={true}
-                                        />
-                                    </div>
-
-                                    <div className="relative">
-                                        <div className="absolute inset-0 flex items-center">
-                                            <span className="w-full border-t" />
+                                    {activeTab === 'search' && (
+                                        <div>
+                                            <Label className="text-base font-semibold mb-2 block">Cari Kode atau Nama Alat</Label>
+                                            <ToolCodeAutocomplete
+                                                value={unitCode}
+                                                onChange={setUnitCode}
+                                                onSelect={handleToolAutocompleteSelect}
+                                                placeholder="Masukkan kode alat..."
+                                                disabled={isVerifyingTool}
+                                            />
                                         </div>
-                                        <div className="relative flex justify-center text-xs uppercase">
-                                            <span className="bg-background px-2 text-muted-foreground">atau</span>
-                                        </div>
-                                    </div>
+                                    )}
 
-                                    <div>
-                                        <Label className="text-base font-semibold mb-2 block">Cari Kode atau Nama Alat</Label>
-                                        <ToolCodeAutocomplete
-                                            value={unitCode}
-                                            onChange={setUnitCode}
-                                            onSelect={handleToolAutocompleteSelect}
-                                            placeholder="Masukkan kode alat..."
-                                            disabled={isVerifyingTool}
-                                        />
-                                    </div>
+                                    {activeTab === 'qr' && (
+                                        <div>
+                                            <Label className="text-base font-semibold mb-2 block">Scan QR Code Alat</Label>
+                                            <QRScanner
+                                                open={true}
+                                                onClose={() => {}}
+                                                onScanSuccess={(decodedText) => {
+                                                    setScannerType('tool');
+                                                    handleVerifyTool(decodedText);
+                                                }}
+                                                onScanError={(error) => toast.error(error)}
+                                                inline={true}
+                                            />
+                                        </div>
+                                    )}
+
                                 </div>
 
                                 {toolVerificationError && (
@@ -474,6 +639,10 @@ export default function Borrow() {
                                         onClick={() => {
                                             setStep(1);
                                             setSelectedTools([]);
+                                            setVerifiedStudent(null);
+                                            // Reset QRScanner
+                                            setQrScannerKey(prev => prev + 1);
+                                            setStudentVerificationError('');
                                         }}
                                         className="flex-1"
                                     >
@@ -512,11 +681,11 @@ export default function Borrow() {
                                         <Label className="text-base font-semibold">Foto Wajah Siswa *</Label>
                                         {studentPhotoPreview ? (
                                             <div className="flex flex-col items-center space-y-4">
-                                                <div className="relative">
+                                                <div className="relative w-full max-w-xs flex items-center justify-center bg-muted rounded-lg border-2 shadow-lg p-4">
                                                     <img
                                                         src={studentPhotoPreview}
                                                         alt="Foto Wajah"
-                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg"
+                                                        className="max-w-full max-h-64 w-auto h-auto object-contain rounded-lg"
                                                     />
                                                 </div>
                                                 <Button
@@ -655,6 +824,211 @@ export default function Borrow() {
                     </Button>
                     <Button onClick={handleConfirmStudent}>Konfirmasi</Button>
                 </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Catalog Dialog */}
+        <Dialog open={isCatalogDialogOpen && !selectedToolForCatalog} onOpenChange={(open) => {
+            if (!open) {
+                setIsCatalogDialogOpen(false);
+                setCatalogSearch('');
+            }
+        }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Katalog Alat</DialogTitle>
+                    <DialogDescription>
+                        Pilih alat dari katalog yang akan dipinjam
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Cari alat berdasarkan nama, kode, atau lokasi..."
+                            value={catalogSearch}
+                            onChange={(e) => setCatalogSearch(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+
+                    {/* Catalog Grid */}
+                    <div className="flex-1 overflow-y-auto">
+                        {isLoadingCatalog ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                Memuat katalog...
+                            </div>
+                        ) : filteredCatalog.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                {catalogSearch ? 'Tidak ada alat yang sesuai dengan pencarian' : 'Tidak ada alat yang tersedia'}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {filteredCatalog.map((tool) => (
+                                    <div
+                                        key={tool.id}
+                                        className="p-4 border-2 rounded-lg hover:bg-muted/50 transition-colors flex flex-col space-y-2 cursor-pointer"
+                                        onClick={() => handleSelectToolFromCatalog(tool)}
+                                    >
+                                        {tool.photo ? (
+                                            <img
+                                                src={`/storage/${tool.photo}`}
+                                                alt={tool.name}
+                                                className="w-full h-32 object-cover rounded-md"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center">
+                                                <Package className="h-12 w-12 text-muted-foreground" />
+                                            </div>
+                                        )}
+                                        <div className="space-y-1 flex-1">
+                                            <p className="font-medium text-sm line-clamp-2">{tool.name}</p>
+                                            <p className="text-xs text-muted-foreground">{tool.location}</p>
+                                            <Badge variant="secondary" className="text-xs">
+                                                Stok: {tool.available_stock}
+                                            </Badge>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSelectToolFromCatalog(tool);
+                                            }}
+                                            size="sm"
+                                            className="w-full"
+                                        >
+                                            Tambah
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+
+        {/* Catalog Unit Selection Dialog */}
+        <Dialog open={!!selectedToolForCatalog} onOpenChange={(open) => {
+            if (!open) {
+                setSelectedToolForCatalog(null);
+                setAvailableUnits([]);
+                setSelectedUnitIds([]);
+            }
+        }}>
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Pilih Unit</DialogTitle>
+                    <DialogDescription>
+                        {selectedToolForCatalog ? (
+                            <>
+                                Pilih unit untuk alat: <strong>{selectedToolForCatalog.name}</strong>
+                                {selectedUnitIds.length > 0 && (
+                                    <span className="ml-2 text-primary">
+                                        ({selectedUnitIds.length} dipilih)
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            'Pilih unit alat yang akan dipinjam'
+                        )}
+                    </DialogDescription>
+                </DialogHeader>
+                {selectedToolForCatalog && (
+                    <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                        {isLoadingUnits ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                Memuat unit yang tersedia...
+                            </div>
+                        ) : availableUnits.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                Tidak ada unit yang tersedia untuk alat ini
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2 flex-1 overflow-y-auto">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-sm font-semibold">Pilih Unit</Label>
+                                        {selectedUnitIds.length > 0 && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setSelectedUnitIds([])}
+                                                className="h-auto py-1 text-xs"
+                                            >
+                                                Hapus semua
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {availableUnits.map((unit) => {
+                                            const isSelected = selectedUnitIds.includes(unit.id.toString());
+                                            const isAlreadyAdded = selectedTools.some((t) => t.toolUnit.id === unit.id);
+
+                                            return (
+                                                <div
+                                                    key={unit.id}
+                                                    onClick={() => {
+                                                        if (!isAlreadyAdded) {
+                                                            handleToggleUnitSelection(unit.id.toString());
+                                                        }
+                                                    }}
+                                                    className={`p-4 border-2 rounded-lg transition-colors ${
+                                                        isAlreadyAdded
+                                                            ? 'border-muted bg-muted/30 cursor-not-allowed opacity-60'
+                                                            : isSelected
+                                                            ? 'border-primary bg-primary/5 cursor-pointer'
+                                                            : 'hover:bg-muted/50 cursor-pointer'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="space-y-1">
+                                                            <p className="font-medium">{unit.unit_code}</p>
+                                                            <p className="text-sm text-muted-foreground">Unit {unit.unit_number}</p>
+                                                            {isAlreadyAdded && (
+                                                                <p className="text-xs text-muted-foreground italic">Sudah ditambahkan</p>
+                                                            )}
+                                                        </div>
+                                                        {isSelected && !isAlreadyAdded && (
+                                                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                                                        )}
+                                                        {isAlreadyAdded && (
+                                                            <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <DialogFooter className="flex-col sm:flex-row gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setSelectedToolForCatalog(null);
+                                            setAvailableUnits([]);
+                                            setSelectedUnitIds([]);
+                                            // Buka kembali dialog katalog
+                                            setIsCatalogDialogOpen(true);
+                                        }}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        Kembali
+                                    </Button>
+                                    <Button
+                                        onClick={handleAddUnitFromCatalog}
+                                        disabled={selectedUnitIds.length === 0}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        Tambah {selectedUnitIds.length > 0 && `(${selectedUnitIds.length})`}
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
         </div>

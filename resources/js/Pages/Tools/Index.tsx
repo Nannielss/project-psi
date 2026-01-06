@@ -51,6 +51,7 @@ interface ToolsPageProps extends PageProps {
     };
     filters: {
         search?: string;
+        condition?: string;
     };
     flash?: {
         success?: string;
@@ -61,6 +62,7 @@ interface ToolsPageProps extends PageProps {
 export default function Index({ tools, filters }: ToolsPageProps) {
     const { flash } = usePage<ToolsPageProps>().props;
     const [search, setSearch] = useState(filters.search || '');
+    const [conditionFilter, setConditionFilter] = useState(filters.condition || 'all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -115,6 +117,18 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         e.preventDefault();
         router.get('/tools', {
             search: search || undefined,
+            condition: conditionFilter !== 'all' ? conditionFilter : undefined,
+        }, {
+            preserveState: true,
+            replace: true,
+        });
+    };
+
+    const handleConditionFilterChange = (value: string) => {
+        setConditionFilter(value);
+        router.get('/tools', {
+            search: search || undefined,
+            condition: value !== 'all' ? value : undefined,
         }, {
             preserveState: true,
             replace: true,
@@ -604,15 +618,27 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="flex-1"
                                 />
+                                <Select value={conditionFilter} onValueChange={handleConditionFilterChange}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Filter Kondisi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Semua Kondisi</SelectItem>
+                                        <SelectItem value="good">Baik</SelectItem>
+                                        <SelectItem value="damaged">Rusak</SelectItem>
+                                        <SelectItem value="scrapped">Rusak Total</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <Button type="submit" size="icon">
                                     <Search className="h-4 w-4" />
                                 </Button>
-                                {search && (
+                                {(search || conditionFilter !== 'all') && (
                                     <Button
                                         type="button"
                                         variant="outline"
                                         onClick={() => {
                                             setSearch('');
+                                            setConditionFilter('all');
                                             router.get('/tools');
                                         }}
                                     >
@@ -648,6 +674,8 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                 <TableHead>Nama</TableHead>
                                                 <TableHead>Lokasi</TableHead>
                                                 <TableHead>Total Unit</TableHead>
+                                                <TableHead>Jumlah Tersedia</TableHead>
+                                                <TableHead>Jumlah Dipinjam</TableHead>
                                                 <TableHead>Kondisi</TableHead>
                                                 <TableHead className="text-right">Aksi</TableHead>
                                             </TableRow>
@@ -676,6 +704,16 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                     <TableCell>
                                                         <Badge variant="outline">
                                                             {tool.total_units || 0}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="default" className="bg-green-500">
+                                                            {tool.available_count || 0}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary">
+                                                            {tool.borrowed_count || 0}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>

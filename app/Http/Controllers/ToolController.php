@@ -46,6 +46,17 @@ class ToolController extends Controller
             'units as scrapped_count' => function ($q) {
                 $q->where('condition', 'scrapped');
             },
+            'units as available_count' => function ($q) {
+                $q->where('condition', 'good')
+                    ->whereDoesntHave('toolLoans', function ($q) {
+                        $q->where('status', 'borrowed');
+                    });
+            },
+            'units as borrowed_count' => function ($q) {
+                $q->whereHas('toolLoans', function ($q) {
+                    $q->where('status', 'borrowed');
+                });
+            },
         ]);
 
         // Search functionality
@@ -59,11 +70,23 @@ class ToolController extends Controller
             });
         }
 
+        // Filter by condition
+        if ($request->has('condition') && $request->condition) {
+            $condition = $request->condition;
+            if ($condition === 'good') {
+                $query->having('good_count', '>', 0);
+            } elseif ($condition === 'damaged') {
+                $query->having('damaged_count', '>', 0);
+            } elseif ($condition === 'scrapped') {
+                $query->having('scrapped_count', '>', 0);
+            }
+        }
+
         $tools = $query->with('units')->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         return Inertia::render('Tools/Index', [
             'tools' => $tools,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search', 'condition']),
         ]);
     }
 

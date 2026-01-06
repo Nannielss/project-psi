@@ -168,6 +168,75 @@ class ToolLoanController extends Controller
     }
 
     /**
+     * Get tools catalog with available stock (public API).
+     */
+    public function getToolsCatalog()
+    {
+        $tools = Tool::withCount([
+            'units as total_units',
+            'units as available_units' => function ($q) {
+                $q->where('condition', 'good')
+                    ->whereDoesntHave('toolLoans', function ($q) {
+                        $q->where('status', 'borrowed');
+                    });
+            },
+        ])
+            ->having('available_units', '>', 0)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($tool) {
+                return [
+                    'id' => $tool->id,
+                    'name' => $tool->name,
+                    'code' => $tool->code,
+                    'location' => $tool->location,
+                    'photo' => $tool->photo,
+                    'description' => $tool->description,
+                    'available_stock' => $tool->available_units,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'tools' => $tools,
+        ]);
+    }
+
+    /**
+     * Get available units for a specific tool (public API).
+     */
+    public function getAvailableUnits($toolId)
+    {
+        $tool = Tool::findOrFail($toolId);
+
+        $availableUnits = ToolUnit::where('tool_id', $toolId)
+            ->where('condition', 'good')
+            ->whereDoesntHave('toolLoans', function ($q) {
+                $q->where('status', 'borrowed');
+            })
+            ->orderBy('unit_code')
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'id' => $unit->id,
+                    'unit_code' => $unit->unit_code,
+                    'unit_number' => $unit->unit_number,
+                    'condition' => $unit->condition,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'tool' => [
+                'id' => $tool->id,
+                'name' => $tool->name,
+                'code' => $tool->code,
+            ],
+            'available_units' => $availableUnits,
+        ]);
+    }
+
+    /**
      * Store a new tool loan (borrow).
      */
     public function storeBorrow(Request $request)
@@ -229,49 +298,84 @@ class ToolLoanController extends Controller
     }
 
     /**
-     * Store tool return.
+     * Store tool return (supports batch return).
      */
     public function storeReturn(Request $request)
     {
+        // Handle returns as JSON string from FormData
+        $returnsJson = $request->input('returns');
+        $returns = is_string($returnsJson) ? json_decode($returnsJson, true) : $returnsJson;
+
         $validated = $request->validate([
-            'tool_unit_id' => 'required|exists:tool_units,id',
             'return_photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'return_condition' => 'required|in:good,damaged',
-            'notes' => 'nullable|string',
         ]);
 
-        // Find active loan for this tool unit
-        $toolUnit = ToolUnit::findOrFail($validated['tool_unit_id']);
-        $activeLoan = ToolLoan::where('tool_unit_id', $toolUnit->id)
-            ->where('status', 'borrowed')
-            ->first();
-
-        if (!$activeLoan) {
+        // Validate returns array
+        if (!is_array($returns) || count($returns) === 0) {
             return redirect()->back()
-                ->withErrors(['tool_unit_id' => 'Alat ini tidak sedang dipinjam.'])
+                ->withErrors(['returns' => 'Minimal satu alat harus dikembalikan.'])
                 ->withInput();
+        }
+
+        foreach ($returns as $returnData) {
+            if (!isset($returnData['tool_unit_id']) || !isset($returnData['return_condition'])) {
+                return redirect()->back()
+                    ->withErrors(['returns' => 'Data pengembalian tidak valid.'])
+                    ->withInput();
+            }
         }
 
         // Handle photo upload
         $photoPath = $request->file('return_photo')->store('tool-loans/return', 'public');
 
-        // Update loan record
-        $activeLoan->update([
-            'return_photo' => $photoPath,
-            'returned_at' => now(),
-            'status' => 'returned',
-            'return_condition' => $validated['return_condition'],
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        $successCount = 0;
+        $errors = [];
 
-        // Update tool unit condition
-        $toolUnit = $activeLoan->toolUnit;
-        $toolUnit->update([
-            'condition' => $validated['return_condition'],
-        ]);
+        foreach ($returns as $returnData) {
+            try {
+                // Find active loan for this tool unit
+                $toolUnit = ToolUnit::findOrFail($returnData['tool_unit_id']);
+                $activeLoan = ToolLoan::where('tool_unit_id', $toolUnit->id)
+                    ->where('status', 'borrowed')
+                    ->first();
 
-        return redirect()->route('tool-loans.return')
-            ->with('success', 'Pengembalian alat berhasil dicatat.');
+                if (!$activeLoan) {
+                    $errors[] = "Alat dengan kode {$toolUnit->unit_code} tidak sedang dipinjam.";
+                    continue;
+                }
+
+                // Update loan record
+                $activeLoan->update([
+                    'return_photo' => $photoPath,
+                    'returned_at' => now(),
+                    'status' => 'returned',
+                    'return_condition' => $returnData['return_condition'],
+                    'notes' => $returnData['notes'] ?? null,
+                ]);
+
+                // Update tool unit condition
+                $toolUnit->update([
+                    'condition' => $returnData['return_condition'],
+                ]);
+
+                $successCount++;
+            } catch (\Exception $e) {
+                $errors[] = "Gagal mengembalikan alat dengan kode {$returnData['tool_unit_id']}: " . $e->getMessage();
+            }
+        }
+
+        if ($successCount > 0) {
+            $message = "{$successCount} alat berhasil dikembalikan.";
+            if (count($errors) > 0) {
+                $message .= ' ' . implode(' ', $errors);
+            }
+            return redirect()->route('tool-loans.return')
+                ->with('success', $message);
+        }
+
+        return redirect()->back()
+            ->withErrors(['returns' => 'Gagal mengembalikan alat. ' . implode(' ', $errors)])
+            ->withInput();
     }
 
     /**
@@ -310,6 +414,32 @@ class ToolLoanController extends Controller
         return response()->json([
             'success' => true,
             'loan' => $activeLoan->load('toolUnit.tool'),
+        ]);
+    }
+
+    /**
+     * Get all active loans for a student (for return page).
+     */
+    public function getActiveLoansByStudent($studentId)
+    {
+        $student = Student::find($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Siswa tidak ditemukan.',
+            ], 404);
+        }
+
+        $activeLoans = ToolLoan::where('student_id', $studentId)
+            ->where('status', 'borrowed')
+            ->with(['toolUnit.tool'])
+            ->orderBy('borrowed_at', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'loans' => $activeLoans,
         ]);
     }
 

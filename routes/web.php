@@ -33,6 +33,9 @@ Route::get('tool-loans/borrow', [ToolLoanController::class, 'borrowPage'])->name
 Route::get('tool-loans/return', [ToolLoanController::class, 'returnPage'])->name('tool-loans.return');
 Route::get('tool-loans/teachers', [ToolLoanController::class, 'getTeachers'])->name('tool-loans.teachers');
 Route::get('tool-loans/search-tools', [ToolLoanController::class, 'searchTools'])->name('tool-loans.search-tools');
+Route::get('tool-loans/tools-catalog', [ToolLoanController::class, 'getToolsCatalog'])->name('tool-loans.tools-catalog');
+Route::get('tool-loans/tools/{toolId}/available-units', [ToolLoanController::class, 'getAvailableUnits'])->name('tool-loans.available-units');
+Route::get('tool-loans/active-loans/{studentId}', [ToolLoanController::class, 'getActiveLoansByStudent'])->name('tool-loans.active-loans');
 Route::post('tool-loans/verify-student', [ToolLoanController::class, 'verifyStudent'])->name('tool-loans.verify-student');
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
 Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');

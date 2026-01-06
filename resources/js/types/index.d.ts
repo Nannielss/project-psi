@@ -98,6 +98,8 @@ export interface Tool {
     good_count?: number;
     damaged_count?: number;
     scrapped_count?: number;
+    available_count?: number;
+    borrowed_count?: number;
 }
 
 export interface ToolLoan {

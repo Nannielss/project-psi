@@ -51,7 +51,7 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                 { facingMode: 'environment' }, // Use back camera
                 {
                     fps: 10,
-                    qrbox: { width: 250, height: 250 },
+                    qrbox: { width: 320, height: 320 },
                     aspectRatio: 1.0,
                     disableFlip: false,
                 },
@@ -126,17 +126,15 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                             </div>
                         </div>
                     )}
-                    {!error && isScanning && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg pointer-events-none">
-                            <div className="text-center p-4">
-                                <div className="animate-pulse">
-                                    <Camera className="h-12 w-12 text-primary mx-auto mb-2" />
-                                    <p className="text-white font-medium">Memindai QR Code...</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
+                {!error && isScanning && (
+                    <div className="text-center">
+                        <div className="animate-pulse inline-flex items-center gap-2">
+                            <Camera className="h-5 w-5 text-primary" />
+                            <p className="text-sm font-medium">Memindai QR Code...</p>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -172,17 +170,15 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                                 </div>
                             </div>
                         )}
-                        {!error && isScanning && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg pointer-events-none">
-                                <div className="text-center p-4">
-                                    <div className="animate-pulse">
-                                        <Camera className="h-12 w-12 text-primary mx-auto mb-2" />
-                                        <p className="text-white font-medium">Memindai QR Code...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
+                    {!error && isScanning && (
+                        <div className="text-center">
+                            <div className="animate-pulse inline-flex items-center gap-2">
+                                <Camera className="h-5 w-5 text-primary" />
+                                <p className="text-sm font-medium">Memindai QR Code...</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={handleClose}>
                             <X className="mr-2 h-4 w-4" />

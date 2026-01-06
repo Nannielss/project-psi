@@ -12,13 +12,12 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, ArrowRight, ArrowLeft, Camera } from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
 import { Student, ToolLoan, PageProps } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { QRScanner } from '@/components/features/qr/QRScanner';
 import { PhotoCapture } from '@/components/features/camera/PhotoCapture';
-import { ToolCodeAutocomplete } from '@/components/features/tools/ToolCodeAutocomplete';
 
 interface ReturnPageProps extends PageProps {
     flash?: {
@@ -27,27 +26,27 @@ interface ReturnPageProps extends PageProps {
     };
 }
 
+interface ReturnItem {
+    loan: ToolLoan;
+    condition: 'good' | 'damaged';
+    notes: string;
+}
+
 export default function Return() {
     const { flash } = usePage<ReturnPageProps>().props;
-    const [step, setStep] = useState(1);
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
     const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [studentVerificationError, setStudentVerificationError] = useState('');
-    
-    const [unitCode, setUnitCode] = useState('');
-    const [activeLoan, setActiveLoan] = useState<ToolLoan | null>(null);
-    const [isVerifyingTool, setIsVerifyingTool] = useState(false);
-    const [toolVerificationError, setToolVerificationError] = useState('');
 
-    const [returnCondition, setReturnCondition] = useState<'good' | 'damaged'>('good');
+    const [activeLoans, setActiveLoans] = useState<ToolLoan[]>([]);
+    const [isLoadingLoans, setIsLoadingLoans] = useState(false);
+    const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
+
     const [returnPhoto, setReturnPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [isPhotoOpen, setIsPhotoOpen] = useState(false);
-    const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
 
     // Show toast notifications
     useEffect(() => {
@@ -58,6 +57,44 @@ export default function Return() {
             toast.error(flash.error);
         }
     }, [flash]);
+
+    // Load active loans when student is verified
+    useEffect(() => {
+        if (verifiedStudent) {
+            loadActiveLoans();
+        }
+    }, [verifiedStudent]);
+
+    // Auto-open camera when loans are loaded and no photo yet
+    useEffect(() => {
+        if (verifiedStudent && returnItems.length > 0 && !photoPreview) {
+            setIsPhotoOpen(true);
+        }
+    }, [verifiedStudent, returnItems.length, photoPreview]);
+
+    const loadActiveLoans = async () => {
+        if (!verifiedStudent) return;
+
+        setIsLoadingLoans(true);
+        try {
+            const response = await axios.get(`/tool-loans/active-loans/${verifiedStudent.id}`);
+            if (response.data.success) {
+                const loans = response.data.loans;
+                setActiveLoans(loans);
+                // Initialize return items with default condition 'good'
+                setReturnItems(loans.map((loan: ToolLoan) => ({
+                    loan,
+                    condition: 'good' as const,
+                    notes: '',
+                })));
+            }
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || 'Gagal memuat daftar pinjaman';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingLoans(false);
+        }
+    };
 
     const handleVerifyStudent = async (nisToVerify?: string) => {
         const nisValue = nisToVerify || nis.trim();
@@ -74,7 +111,6 @@ export default function Return() {
             if (response.data.success) {
                 setVerifiedStudent(response.data.student);
                 setNis(nisValue);
-                setStep(2);
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
@@ -85,46 +121,8 @@ export default function Return() {
         }
     };
 
-    const handleVerifyTool = async (codeToVerify?: string) => {
-        if (!verifiedStudent) {
-            setToolVerificationError('Verifikasi siswa terlebih dahulu');
-            return;
-        }
-
-        const codeValue = codeToVerify || unitCode.trim();
-        if (!codeValue) {
-            setToolVerificationError('Masukkan kode alat terlebih dahulu');
-            return;
-        }
-
-        setIsVerifyingTool(true);
-        setToolVerificationError('');
-
-        try {
-            const response = await axios.post('/tool-loans/get-active-loan-by-tool', {
-                unit_code: codeValue,
-                student_id: verifiedStudent.id,
-            });
-            if (response.data.success) {
-                setActiveLoan(response.data.loan);
-                setUnitCode(codeValue);
-                setStep(3);
-            }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Alat tidak ditemukan atau tidak dipinjam oleh siswa ini';
-            setToolVerificationError(errorMessage);
-            setActiveLoan(null);
-        } finally {
-            setIsVerifyingTool(false);
-        }
-    };
-
     const handleQRScanSuccess = (decodedText: string) => {
-        if (scannerType === 'student') {
-            handleVerifyStudent(decodedText);
-        } else {
-            handleVerifyTool(decodedText);
-        }
+        handleVerifyStudent(decodedText);
     };
 
     const handleQRScanError = (error: string) => {
@@ -141,13 +139,16 @@ export default function Return() {
         setIsPhotoOpen(false);
     };
 
-    const handleToolAutocompleteSelect = async (tool: { unit_code: string; tool_name: string; available_stock: number }) => {
-        await handleVerifyTool(tool.unit_code);
+
+    const updateReturnItem = (index: number, updates: Partial<ReturnItem>) => {
+        const newItems = [...returnItems];
+        newItems[index] = { ...newItems[index], ...updates };
+        setReturnItems(newItems);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!verifiedStudent || !activeLoan || !returnPhoto) {
+        if (!verifiedStudent || returnItems.length === 0 || !returnPhoto) {
             toast.error('Pastikan semua data sudah lengkap');
             return;
         }
@@ -155,28 +156,28 @@ export default function Return() {
         setIsSubmitting(true);
 
         const formData = new FormData();
-        formData.append('tool_unit_id', activeLoan.tool_unit_id.toString());
         formData.append('return_photo', returnPhoto);
-        formData.append('return_condition', returnCondition);
-        if (notes) {
-            formData.append('notes', notes);
-        }
+
+        // Add returns array as JSON
+        const returns = returnItems.map(item => ({
+            tool_unit_id: item.loan.tool_unit_id,
+            return_condition: item.condition,
+            notes: item.condition === 'damaged' ? item.notes : null,
+        }));
+        formData.append('returns', JSON.stringify(returns));
 
         router.post('/tool-loans/return', formData, {
             forceFormData: true,
             onSuccess: () => {
                 toast.success('Pengembalian alat berhasil dicatat');
-                // Redirect to tool-loans page
                 router.visit('/tool-loans');
             },
             onError: (errors) => {
                 setIsSubmitting(false);
-                if (errors.student_id) {
-                    toast.error(errors.student_id);
+                if (errors.returns) {
+                    toast.error(errors.returns);
                 } else if (errors.return_photo) {
                     toast.error(errors.return_photo);
-                } else if (errors.return_condition) {
-                    toast.error(errors.return_condition);
                 } else {
                     toast.error('Terjadi kesalahan saat menyimpan data');
                 }
@@ -200,67 +201,20 @@ export default function Return() {
                         <div>
                             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Pengembalian Alat</h1>
                             <p className="text-muted-foreground text-sm sm:text-base mt-1">
-                                Scan QR code untuk memverifikasi siswa dan alat yang akan dikembalikan
+                                Scan QR code untuk memverifikasi siswa dan kembalikan semua alat yang dipinjam
                             </p>
                         </div>
                     </div>
 
-                    {/* Step Indicator */}
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
-                                {step > 1 ? <CheckCircle2 className="h-4 w-4" /> : '1'}
-                            </div>
-                            <span className="font-medium">Verifikasi Siswa</span>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
-                                {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
-                            </div>
-                            <span className="font-medium">Scan QR Alat</span>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
-                                {step > 3 ? <CheckCircle2 className="h-4 w-4" /> : '3'}
-                            </div>
-                            <span className="font-medium">Kondisi Alat</span>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div className={`flex items-center gap-2 ${step >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                step >= 4 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                            }`}>
-                                4
-                            </div>
-                            <span className="font-medium">Foto & Submit</span>
-                        </div>
-                    </div>
 
-                    {/* Step 1: Verify Student */}
-                    {step === 1 && (
+                    {/* Verify Student */}
+                    {!verifiedStudent && (
                         <Card className="border-2">
-                            <CardHeader className="text-center pb-6">
-                                <CardTitle className="text-2xl mb-2">Verifikasi Siswa</CardTitle>
-                                <CardDescription className="text-base">
-                                    Scan QR code NIS siswa untuk memulai pengembalian
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
+                            <CardContent className="space-y-6 pt-6">
                                 <QRScanner
                                     open={true}
                                     onClose={() => {}}
-                                    onScanSuccess={(decodedText) => {
-                                        setScannerType('student');
-                                        handleVerifyStudent(decodedText);
-                                    }}
+                                    onScanSuccess={handleQRScanSuccess}
                                     onScanError={handleQRScanError}
                                     inline={true}
                                 />
@@ -270,312 +224,176 @@ export default function Return() {
                                         {studentVerificationError}
                                     </div>
                                 )}
-
-                                {verifiedStudent && (
-                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
-                                        <div className="flex items-center justify-center mb-2">
-                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div className="text-center space-y-1">
-                                            <p className="text-lg font-semibold">{verifiedStudent.name}</p>
-                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                            {verifiedStudent.major && (
-                                                <p className="text-xs text-muted-foreground">{verifiedStudent.major.name}</p>
-                                            )}
-                                        </div>
-                                        <Button
-                                            onClick={() => setStep(2)}
-                                            className="w-full mt-4"
-                                            size="lg"
-                                        >
-                                            Lanjutkan ke Scan Alat
-                                        </Button>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     )}
 
-                    {/* Step 2: Verify Tool */}
-                    {step === 2 && verifiedStudent && (
-                        <Card className="border-2">
-                            <CardHeader className="text-center pb-6">
-                                <CardTitle className="text-2xl mb-2">Scan QR Code Alat</CardTitle>
-                                <CardDescription className="text-base">
-                                    Scan QR code atau cari kode alat yang akan dikembalikan
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="p-4 bg-muted/50 rounded-lg border">
-                                    <div className="text-center space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
-                                        <p className="font-semibold">{verifiedStudent.name}</p>
-                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label className="text-base font-semibold mb-2 block">Scan QR Code Alat</Label>
-                                        <QRScanner
-                                            open={true}
-                                            onClose={() => {}}
-                                            onScanSuccess={(decodedText) => {
-                                                setScannerType('tool');
-                                                handleVerifyTool(decodedText);
-                                            }}
-                                            onScanError={handleQRScanError}
-                                            inline={true}
-                                        />
-                                    </div>
-
-                                    <div className="relative">
-                                        <div className="absolute inset-0 flex items-center">
-                                            <span className="w-full border-t" />
-                                        </div>
-                                        <div className="relative flex justify-center text-xs uppercase">
-                                            <span className="bg-background px-2 text-muted-foreground">atau</span>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <Label className="text-base font-semibold mb-2 block">Cari Kode atau Nama Alat</Label>
-                                        <ToolCodeAutocomplete
-                                            value={unitCode}
-                                            onChange={setUnitCode}
-                                            onSelect={handleToolAutocompleteSelect}
-                                            placeholder="Masukkan kode alat..."
-                                            disabled={isVerifyingTool}
-                                        />
-                                    </div>
-                                </div>
-
-                                {toolVerificationError && (
-                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
-                                        {toolVerificationError}
-                                    </div>
-                                )}
-
-                                {activeLoan && (
-                                    <div className="p-6 bg-green-50 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg space-y-4">
-                                        <div className="flex items-center justify-center mb-2">
-                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div className="text-center space-y-2">
-                                            <p className="font-semibold text-lg">Pinjaman Ditemukan</p>
-                                            <div className="space-y-1">
-                                                <p className="font-medium">{activeLoan.tool_unit?.tool?.name}</p>
-                                                <p className="text-sm text-muted-foreground">Kode: {activeLoan.tool_unit?.unit_code}</p>
-                                                <p className="text-xs text-muted-foreground mt-2">
-                                                    Dipinjam: {new Date(activeLoan.borrowed_at).toLocaleString('id-ID')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <Button
-                                            onClick={() => setStep(3)}
-                                            className="w-full mt-4"
-                                            size="lg"
-                                        >
-                                            Lanjutkan ke Pilih Kondisi
-                                        </Button>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-3 pt-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => {
-                                            setStep(1);
-                                            setUnitCode('');
-                                            setActiveLoan(null);
-                                        }}
-                                        className="w-full"
-                                    >
-                                        Ganti Siswa
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Step 3: Select Condition */}
-                    {step === 3 && verifiedStudent && activeLoan && (
-                        <Card className="border-2">
-                            <CardHeader className="text-center pb-6">
-                                <CardTitle className="text-2xl mb-2">Pilih Kondisi Alat</CardTitle>
-                                <CardDescription className="text-base">
-                                    Pilih kondisi alat saat dikembalikan
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="p-4 bg-muted/50 rounded-lg border">
-                                    <div className="space-y-2">
+                    {/* Return Form - All in One */}
+                    {verifiedStudent && (
+                        <form onSubmit={handleSubmit}>
+                            <Card className="border-2">
+                                <CardContent className="space-y-6 pt-6">
+                                    {/* Student Info */}
+                                    <div className="p-4 bg-muted/50 rounded-lg border">
                                         <div className="text-center space-y-1">
-                                            <p className="text-sm font-medium text-muted-foreground">Siswa</p>
+                                            <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
                                             <p className="font-semibold">{verifiedStudent.name}</p>
                                             <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
                                         </div>
-                                        <div className="border-t pt-2 mt-2">
-                                            <p className="text-sm font-medium text-muted-foreground text-center">Alat</p>
-                                            <p className="font-semibold text-center">{activeLoan.tool_unit?.tool?.name}</p>
-                                            <p className="text-xs text-muted-foreground text-center">Unit: {activeLoan.tool_unit?.unit_code}</p>
-                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <Label htmlFor="return_condition" className="text-base font-semibold">Kondisi Alat</Label>
-                                    <Select
-                                        value={returnCondition}
-                                        onValueChange={(value: 'good' | 'damaged') => setReturnCondition(value)}
-                                    >
-                                        <SelectTrigger className="h-12">
-                                            <SelectValue placeholder="Pilih kondisi alat" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="good">Baik</SelectItem>
-                                            <SelectItem value="damaged">Rusak</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-sm text-muted-foreground text-center">
-                                        Kondisi alat akan diupdate setelah pengembalian dicatat
-                                    </p>
-                                </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setStep(2)}
-                                        className="flex-1"
-                                    >
-                                        Kembali
-                                    </Button>
-                                    <Button
-                                        onClick={() => setStep(4)}
-                                        className="flex-1"
-                                        size="lg"
-                                    >
-                                        Lanjutkan
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Step 4: Photo & Submit */}
-                    {step === 4 && verifiedStudent && activeLoan && (
-                        <form onSubmit={handleSubmit}>
-                            <Card className="border-2">
-                                <CardHeader className="text-center pb-6">
-                                    <CardTitle className="text-2xl mb-2">Ambil Foto & Submit</CardTitle>
-                                    <CardDescription className="text-base">
-                                        Ambil foto alat yang dikembalikan dan konfirmasi data
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    <div className="p-4 bg-muted/50 rounded-lg border">
-                                        <div className="space-y-2">
-                                            <div className="text-center space-y-1">
-                                                <p className="text-sm font-medium text-muted-foreground">Siswa</p>
-                                                <p className="font-semibold">{verifiedStudent.name}</p>
-                                                <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
-                                            </div>
-                                            <div className="border-t pt-2 mt-2">
-                                                <p className="text-sm font-medium text-muted-foreground text-center">Alat</p>
-                                                <p className="font-semibold text-center">{activeLoan.tool_unit?.tool?.name}</p>
-                                                <p className="text-xs text-muted-foreground text-center">Unit: {activeLoan.tool_unit?.unit_code}</p>
-                                                <div className="flex justify-center mt-2">
-                                                    <Badge variant="secondary">
-                                                        Kondisi: {returnCondition === 'good' ? 'Baik' : 'Rusak'}
+                                    {/* List Barang */}
+                                    {isLoadingLoans ? (
+                                        <div className="text-center py-8">
+                                            <p className="text-muted-foreground">Memuat daftar pinjaman...</p>
+                                        </div>
+                                    ) : activeLoans.length === 0 ? (
+                                        <div className="text-center py-12 text-muted-foreground">
+                                            <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                            <p>Tidak ada alat yang sedang dipinjam</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-base font-semibold">Daftar Barang yang Dipinjam</Label>
+                                                    <Badge variant="secondary" className="text-sm">
+                                                        {activeLoans.length} alat
                                                     </Badge>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                    {returnItems.map((item, index) => (
+                                                        <div
+                                                            key={item.loan.id}
+                                                            className="p-3 border-2 rounded-lg"
+                                                        >
+                                                            <div className="space-y-1 mb-3">
+                                                                <p className="font-medium">{item.loan.tool_unit?.tool?.name}</p>
+                                                                <p className="text-sm text-muted-foreground">Kode: {item.loan.tool_unit?.unit_code}</p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Dipinjam: {new Date(item.loan.borrowed_at).toLocaleString('id-ID')}
+                                                                </p>
+                                                            </div>
 
-                                    <div className="space-y-3">
-                                        <Label className="text-base font-semibold">Foto Alat *</Label>
-                                        {photoPreview ? (
-                                            <div className="flex flex-col items-center space-y-4">
-                                                <div className="relative">
-                                                    <img
-                                                        src={photoPreview}
-                                                        alt="Preview"
-                                                        className="w-64 h-64 object-cover rounded-lg border-2 shadow-lg"
-                                                    />
+                                                            {/* Kondisi Alat */}
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor={`condition-${index}`} className="text-sm font-semibold">
+                                                                    Kondisi Alat
+                                                                </Label>
+                                                                <Select
+                                                                    value={item.condition}
+                                                                    onValueChange={(value: 'good' | 'damaged') => {
+                                                                        updateReturnItem(index, {
+                                                                            condition: value,
+                                                                            notes: value === 'good' ? '' : item.notes
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <SelectTrigger id={`condition-${index}`} className="h-10">
+                                                                        <SelectValue placeholder="Pilih kondisi alat" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="good">Baik</SelectItem>
+                                                                        <SelectItem value="damaged">Rusak</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+
+                                                                {item.condition === 'damaged' && (
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor={`notes-${index}`} className="text-sm font-semibold">
+                                                                            Catatan Kerusakan *
+                                                                        </Label>
+                                                                        <Textarea
+                                                                            id={`notes-${index}`}
+                                                                            placeholder="Jelaskan kondisi kerusakan alat..."
+                                                                            value={item.notes}
+                                                                            onChange={(e) => updateReturnItem(index, { notes: e.target.value })}
+                                                                            rows={2}
+                                                                            className="resize-none"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
+                                            </div>
+
+                                            {/* Foto Wajah dan Alat */}
+                                            <div className="space-y-3">
+                                                <Label className="text-base font-semibold">Foto Wajah dan Alat *</Label>
+                                                {photoPreview ? (
+                                                    <div className="flex flex-col items-center space-y-4">
+                                                        <div className="relative w-full max-w-xs flex items-center justify-center bg-muted rounded-lg border-2 shadow-lg p-4">
+                                                            <img
+                                                                src={photoPreview}
+                                                                alt="Preview"
+                                                                className="max-w-full max-h-64 w-auto h-auto object-contain rounded-lg"
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setReturnPhoto(null);
+                                                                setPhotoPreview(null);
+                                                                setIsPhotoOpen(true);
+                                                            }}
+                                                        >
+                                                            Ganti Foto
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <PhotoCapture
+                                                        open={isPhotoOpen}
+                                                        onClose={() => setIsPhotoOpen(false)}
+                                                        onCapture={handlePhotoCapture}
+                                                        title="Ambil Foto Wajah dan Alat"
+                                                        description="Posisikan wajah dan alat dalam frame kamera"
+                                                        inline={true}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Submit Buttons */}
+                                            <div className="flex gap-3 pt-4">
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     onClick={() => {
+                                                        setVerifiedStudent(null);
+                                                        setActiveLoans([]);
+                                                        setReturnItems([]);
                                                         setReturnPhoto(null);
                                                         setPhotoPreview(null);
-                                                        setIsPhotoOpen(true);
+                                                        setIsPhotoOpen(false);
                                                     }}
+                                                    className="flex-1"
                                                 >
-                                                    Ganti Foto
+                                                    Ganti Siswa
+                                                </Button>
+                                                <Button
+                                                    type="submit"
+                                                    disabled={isSubmitting || !returnPhoto || returnItems.length === 0}
+                                                    onClick={(e) => {
+                                                        // Validate that all damaged items have notes
+                                                        const damagedItems = returnItems.filter(item => item.condition === 'damaged');
+                                                        const hasEmptyNotes = damagedItems.some(item => !item.notes.trim());
+
+                                                        if (hasEmptyNotes) {
+                                                            e.preventDefault();
+                                                            toast.error('Alat yang rusak harus memiliki catatan kerusakan');
+                                                            return;
+                                                        }
+                                                    }}
+                                                    className="flex-1"
+                                                    size="lg"
+                                                >
+                                                    {isSubmitting ? 'Menyimpan...' : `Simpan Pengembalian (${returnItems.length} alat)`}
                                                 </Button>
                                             </div>
-                                        ) : (
-                                            <div>
-                                                {isPhotoOpen ? (
-                                                    <PhotoCapture
-                                                        open={true}
-                                                        onClose={() => setIsPhotoOpen(false)}
-                                                        onCapture={handlePhotoCapture}
-                                                        title="Ambil Foto Alat"
-                                                        description="Posisikan alat dalam frame kamera"
-                                                        inline={true}
-                                                    />
-                                                ) : (
-                                                    <div className="flex justify-center">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="lg"
-                                                            onClick={() => setIsPhotoOpen(true)}
-                                                        >
-                                                            <Camera className="mr-2 h-4 w-4" />
-                                                            Buka Kamera
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="notes" className="text-base font-semibold">Catatan (Opsional)</Label>
-                                        <Textarea
-                                            id="notes"
-                                            placeholder="Catatan tambahan untuk pengembalian"
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                            rows={4}
-                                            className="resize-none"
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-3 pt-4">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setStep(3)}
-                                            className="flex-1"
-                                        >
-                                            Kembali
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            disabled={isSubmitting || !returnPhoto}
-                                            className="flex-1"
-                                            size="lg"
-                                        >
-                                            {isSubmitting ? 'Menyimpan...' : 'Simpan Pengembalian'}
-                                        </Button>
-                                    </div>
+                                        </>
+                                    )}
                                 </CardContent>
                             </Card>
                         </form>
@@ -586,5 +404,3 @@ export default function Return() {
         </div>
     );
 }
-
-
