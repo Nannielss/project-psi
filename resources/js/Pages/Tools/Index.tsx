@@ -31,8 +31,9 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, QrCode, Printer, Package, Upload, Download } from 'lucide-react';
-import { PageProps, Tool, ToolUnit } from '@/types';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, QrCode, Printer, Package, Upload, Download, ScanLine } from 'lucide-react';
+import { PageProps, Tool, ToolUnit, Major } from '@/types';
 import { toast } from 'sonner';
 import { QRPrintDialog } from '@/components/features/qr/QRPrintDialog';
 
@@ -53,13 +54,14 @@ interface ToolsPageProps extends PageProps {
         search?: string;
         condition?: string;
     };
+    majors: Major[];
     flash?: {
         success?: string;
         error?: string;
     };
 }
 
-export default function Index({ tools, filters }: ToolsPageProps) {
+export default function Index({ tools, filters, majors }: ToolsPageProps) {
     const { flash, auth } = usePage<ToolsPageProps>().props;
     const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
@@ -104,6 +106,34 @@ export default function Index({ tools, filters }: ToolsPageProps) {
     const [isLoadingQR, setIsLoadingQR] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Builder state
+    const [useBuilder, setUseBuilder] = useState(true);
+    const [builderData, setBuilderData] = useState({
+        schoolName: 'WK',
+        schoolCode: '09',
+        majorCode: '',
+        toolNumber: '',
+        unitCount: '',
+        year: new Date().getFullYear().toString(),
+    });
+    const [customSchoolName, setCustomSchoolName] = useState('');
+    const [showCustomSchoolInput, setShowCustomSchoolInput] = useState(false);
+
+    // Generate code from builder data
+    const generateCodeFromBuilder = (data?: typeof builderData, customSchool?: string, isCustom?: boolean) => {
+        const useData = data || builderData;
+        const useCustomSchool = customSchool !== undefined ? customSchool : customSchoolName;
+        const useIsCustom = isCustom !== undefined ? isCustom : showCustomSchoolInput;
+
+        const school = useIsCustom && useCustomSchool ? useCustomSchool : useData.schoolName;
+        const major = useData.majorCode || '00';
+        const toolNum = useData.toolNumber || '00';
+        const unit = useData.unitCount || '0';
+        const year = useData.year || new Date().getFullYear().toString();
+
+        return `${school}.${useData.schoolCode}.${major}.${toolNum}.${unit}.${year}`;
+    };
+
     // Show toast notifications
     useEffect(() => {
         if (flash?.success) {
@@ -113,6 +143,14 @@ export default function Index({ tools, filters }: ToolsPageProps) {
             toast.error(flash.error);
         }
     }, [flash]);
+
+    // Generate code when dialog opens with builder mode
+    useEffect(() => {
+        if (isCreateOpen && useBuilder) {
+            const generatedCode = generateCodeFromBuilder();
+            setFormData(prev => ({ ...prev, code: generatedCode }));
+        }
+    }, [isCreateOpen, useBuilder]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -140,8 +178,10 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         e.preventDefault();
         setIsSubmitting(true);
 
+        const codeToUse = useBuilder ? generateCodeFromBuilder() : formData.code;
+
         const formDataToSend = new FormData();
-        formDataToSend.append('code', formData.code);
+        formDataToSend.append('code', codeToUse);
         formDataToSend.append('name', formData.name);
         formDataToSend.append('location', formData.location);
         formDataToSend.append('description', formData.description || '');
@@ -154,6 +194,17 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                 setIsCreateOpen(false);
                 setFormData({ code: '', name: '', location: '', photo: null, description: '' });
                 setPhotoPreview(null);
+                setUseBuilder(true);
+                setBuilderData({
+                    schoolName: 'WK',
+                    schoolCode: '09',
+                    majorCode: '',
+                    toolNumber: '',
+                    unitCount: '',
+                    year: new Date().getFullYear().toString(),
+                });
+                setCustomSchoolName('');
+                setShowCustomSchoolInput(false);
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -482,7 +533,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                             Tambah Alat
                                         </Button>
                                     </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogContent className={`${useBuilder ? 'max-w-5xl' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto`}>
                                 <DialogHeader>
                                     <DialogTitle>Tambah Alat Baru</DialogTitle>
                                     <DialogDescription>
@@ -491,16 +542,193 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                 </DialogHeader>
                                 <form onSubmit={handleCreate}>
                                     <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="code">Kode Alat</Label>
-                                            <Input
-                                                id="code"
-                                                placeholder="WK.09.03.131.1.2025"
-                                                value={formData.code}
-                                                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                                                required
-                                            />
+                                        {/* Builder Toggle */}
+                                        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                                            <div className="flex items-center gap-3">
+                                                <Label htmlFor="builder-toggle" className="text-sm font-medium">
+                                                    Builder Kode Inventaris
+                                                </Label>
+                                                <Switch
+                                                    id="builder-toggle"
+                                                    checked={useBuilder}
+                                                    onCheckedChange={(checked) => {
+                                                        setUseBuilder(checked);
+                                                        if (checked) {
+                                                            // Auto-generate code when switching to builder
+                                                            const generatedCode = generateCodeFromBuilder();
+                                                            setFormData(prev => ({ ...prev, code: generatedCode }));
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="text-sm text-muted-foreground">
+                                                    {useBuilder ? 'Builder' : 'Input Manual'}
+                                                </span>
+                                            </div>
                                         </div>
+
+                                        {/* Builder Mode */}
+                                        {useBuilder ? (
+                                            <div className="space-y-4 p-4 border rounded-lg">
+                                                {/* All fields in one horizontal row */}
+                                                <div className="flex items-end gap-4">
+                                                    <div className="space-y-2 w-40">
+                                                        <Label htmlFor="school-name">Nama Sekolah</Label>
+                                                        <Select
+                                                            value={showCustomSchoolInput ? 'custom' : builderData.schoolName}
+                                                            onValueChange={(value) => {
+                                                                if (value === 'custom') {
+                                                                    setShowCustomSchoolInput(true);
+                                                                } else {
+                                                                    setShowCustomSchoolInput(false);
+                                                                    setBuilderData(prev => {
+                                                                        const newData = { ...prev, schoolName: value };
+                                                                        const generatedCode = generateCodeFromBuilder(newData, undefined, false);
+                                                                        setFormData(prevForm => ({ ...prevForm, code: generatedCode }));
+                                                                        return newData;
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="WK">WK</SelectItem>
+                                                                <SelectItem value="WK-DF">WK-DF</SelectItem>
+                                                                <SelectItem value="WK-PK">WK-PK</SelectItem>
+                                                                <SelectItem value="custom">Lainnya...</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {showCustomSchoolInput && (
+                                                            <Input
+                                                                placeholder="Masukkan nama sekolah"
+                                                                value={customSchoolName}
+                                                                onChange={(e) => {
+                                                                    const newValue = e.target.value;
+                                                                    setCustomSchoolName(newValue);
+                                                                    const generatedCode = generateCodeFromBuilder(builderData, newValue, true);
+                                                                    setFormData(prev => ({ ...prev, code: generatedCode }));
+                                                                }}
+                                                                className="mt-2"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2 w-28">
+                                                        <Label htmlFor="school-code">Kode Sekolah</Label>
+                                                        <Input
+                                                            id="school-code"
+                                                            value={builderData.schoolCode}
+                                                            readOnly
+                                                            className="bg-muted cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2 w-32">
+                                                        <Label htmlFor="major-code">Kd. Jurusan</Label>
+                                                        <Input
+                                                            id="major-code"
+                                                            placeholder="03"
+                                                            value={builderData.majorCode}
+                                                            onChange={(e) => {
+                                                                setBuilderData(prev => {
+                                                                    const newData = { ...prev, majorCode: e.target.value };
+                                                                    const generatedCode = generateCodeFromBuilder(newData);
+                                                                    setFormData(prevForm => ({ ...prevForm, code: generatedCode }));
+                                                                    return newData;
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2 w-36">
+                                                        <Label htmlFor="tool-number">No. Alat</Label>
+                                                        <Input
+                                                            id="tool-number"
+                                                            placeholder="131"
+                                                            value={builderData.toolNumber}
+                                                            onChange={(e) => {
+                                                                setBuilderData(prev => {
+                                                                    const newData = { ...prev, toolNumber: e.target.value };
+                                                                    const generatedCode = generateCodeFromBuilder(newData);
+                                                                    setFormData(prevForm => ({ ...prevForm, code: generatedCode }));
+                                                                    return newData;
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2 w-36">
+                                                        <Label htmlFor="unit-count">Jumlah Unit</Label>
+                                                        <Input
+                                                            id="unit-count"
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="5"
+                                                            value={builderData.unitCount}
+                                                            onChange={(e) => {
+                                                                setBuilderData(prev => {
+                                                                    const newData = { ...prev, unitCount: e.target.value };
+                                                                    const generatedCode = generateCodeFromBuilder(newData);
+                                                                    setFormData(prevForm => ({ ...prevForm, code: generatedCode }));
+                                                                    return newData;
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2 w-32">
+                                                        <Label htmlFor="year">Tahun</Label>
+                                                        <Select
+                                                            value={builderData.year}
+                                                            onValueChange={(value) => {
+                                                                setBuilderData(prev => {
+                                                                    const newData = { ...prev, year: value };
+                                                                    const generatedCode = generateCodeFromBuilder(newData);
+                                                                    setFormData(prevForm => ({ ...prevForm, code: generatedCode }));
+                                                                    return newData;
+                                                                });
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                                                                    <SelectItem key={year} value={year.toString()}>
+                                                                        {year}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+
+                                                {/* Preview Code */}
+                                                <div className="space-y-2 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                                                    <Label className="text-sm font-medium">Preview Kode:</Label>
+                                                    <div className="flex items-center gap-2">
+                                                        <ScanLine className="h-5 w-5 text-primary" />
+                                                        <code className="text-lg font-mono font-semibold text-primary">
+                                                            {generateCodeFromBuilder()}
+                                                        </code>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-2">
+                                                        *Format: [Sekolah].[KodeSekolah].[Jurusan].[NoAlat].[JumlahUnit].[Tahun]
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* Manual Input Mode */
+                                            <div className="space-y-2">
+                                                <Label htmlFor="code">Kode Alat</Label>
+                                                <Input
+                                                    id="code"
+                                                    placeholder="WK.09.03.131.1.2025"
+                                                    value={formData.code}
+                                                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                                                    required
+                                                />
+                                                <p className="text-sm text-muted-foreground">
+                                                    Jumlah unit akan diambil otomatis dari angka ke-5 pada kode alat. Contoh: WK.09.03.131.1.2025 → jumlah unit = 1
+                                                </p>
+                                            </div>
+                                        )}
                                         <div className="space-y-2">
                                             <Label htmlFor="name">Nama Alat</Label>
                                             <Input
@@ -591,6 +819,17 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                 setIsCreateOpen(false);
                                                 setFormData({ code: '', name: '', location: '', photo: null, description: '' });
                                                 setPhotoPreview(null);
+                                                setUseBuilder(true);
+                                                setBuilderData({
+                                                    schoolName: 'WK',
+                                                    schoolCode: '09',
+                                                    majorCode: '',
+                                                    toolNumber: '',
+                                                    unitCount: '',
+                                                    year: new Date().getFullYear().toString(),
+                                                });
+                                                setCustomSchoolName('');
+                                                setShowCustomSchoolInput(false);
                                             }}
                                         >
                                             Batal
@@ -989,7 +1228,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                     Tambah Unit
                                 </Button>
                             </div>
-                            
+
                             {units.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     Belum ada unit
