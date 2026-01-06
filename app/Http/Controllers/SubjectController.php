@@ -19,10 +19,7 @@ class SubjectController extends Controller
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nama', 'like', "%{$search}%")
-                    ->orWhere('hari', 'like', "%{$search}%");
-            });
+            $query->where('nama', 'like', "%{$search}%");
         }
 
         $subjects = $query->orderBy('nama')->paginate(10)->withQueryString();
@@ -39,10 +36,7 @@ class SubjectController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:255',
-            'hari' => 'required|string|max:255',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'nama' => 'required|string|max:255|unique:subjects,nama',
         ]);
 
         $subject = Subject::create($validated);
@@ -63,10 +57,7 @@ class SubjectController extends Controller
     public function update(Request $request, Subject $subject)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:255',
-            'hari' => 'required|string|max:255',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'nama' => 'required|string|max:255|unique:subjects,nama,' . $subject->id,
         ]);
 
         $subject->update($validated);

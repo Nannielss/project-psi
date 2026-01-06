@@ -14,8 +14,10 @@ class MaintenanceController extends Controller
      */
     public function index(Request $request): Response
     {
+        $condition = $request->get('condition', 'damaged'); // 'damaged' or 'scrapped'
+        
         $query = ToolUnit::with('tool')
-            ->where('condition', 'damaged');
+            ->where('condition', $condition);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -35,7 +37,7 @@ class MaintenanceController extends Controller
 
         return Inertia::render('Maintenance/Index', [
             'units' => $units,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search', 'condition']),
         ]);
     }
 

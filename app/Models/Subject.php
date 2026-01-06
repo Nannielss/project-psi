@@ -9,14 +9,6 @@ class Subject extends Model
 {
     protected $fillable = [
         'nama',
-        'hari',
-        'jam_mulai',
-        'jam_selesai',
-    ];
-
-    protected $casts = [
-        'jam_mulai' => 'datetime:H:i',
-        'jam_selesai' => 'datetime:H:i',
     ];
 
     /**

@@ -62,7 +62,8 @@ interface StudentsPageProps extends PageProps {
 }
 
 export default function Index({ students, majors, classes, filters }: StudentsPageProps) {
-    const { flash } = usePage<StudentsPageProps>().props;
+    const { flash, auth } = usePage<StudentsPageProps>().props;
+    const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
     const [majorFilter, setMajorFilter] = useState(filters.major_id || '');
     const [classFilter, setClassFilter] = useState(filters.class || '');
@@ -336,12 +337,14 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
                         </Dialog>
 
                         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Tambah Siswa
-                                </Button>
-                            </DialogTrigger>
+                            {currentUser?.role !== 'guru' && (
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Tambah Siswa
+                                    </Button>
+                                </DialogTrigger>
+                            )}
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>Tambah Siswa Baru</DialogTitle>
@@ -564,20 +567,24 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
                                                             >
                                                                 <QrCode className="h-4 w-4" />
                                                             </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEdit(student)}
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleDelete(student)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
+                                                            {currentUser?.role !== 'guru' && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleEdit(student)}
+                                                                    >
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleDelete(student)}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>

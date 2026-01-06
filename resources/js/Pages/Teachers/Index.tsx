@@ -61,7 +61,8 @@ interface TeachersPageProps extends PageProps {
 }
 
 export default function Index({ teachers, subjects, filters }: TeachersPageProps) {
-    const { flash } = usePage<TeachersPageProps>().props;
+    const { flash, auth } = usePage<TeachersPageProps>().props;
+    const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -75,9 +76,6 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
     });
     const [subjectFormData, setSubjectFormData] = useState({
         nama: '',
-        hari: '',
-        jam_mulai: '',
-        jam_selesai: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmittingSubject, setIsSubmittingSubject] = useState(false);
@@ -124,6 +122,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
 
     const handleEdit = (teacher: Teacher) => {
         setSelectedTeacher(teacher);
+        const isOwnTeacher = currentUser?.role === 'guru' && currentUser?.teacher_id === teacher.id;
         setFormData({
             nip: teacher.nip,
             name: teacher.name,
@@ -132,11 +131,21 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         setIsEditOpen(true);
     };
 
+    const isEditingOwnTeacher = (): boolean => {
+        return !!(currentUser?.role === 'guru' && selectedTeacher && currentUser?.teacher_id === selectedTeacher.id);
+    };
+
     const handleUpdate = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedTeacher) return;
         setIsSubmitting(true);
-        router.put(`/teachers/${selectedTeacher.id}`, formData, {
+        
+        // If editing own teacher, only send subject_ids
+        const updateData = isEditingOwnTeacher() 
+            ? { subject_ids: formData.subject_ids }
+            : formData;
+        
+        router.put(`/teachers/${selectedTeacher.id}`, updateData, {
             onSuccess: () => {
                 setIsEditOpen(false);
                 setSelectedTeacher(null);
@@ -187,7 +196,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
             preserveScroll: true,
             onSuccess: () => {
                 setIsCreateSubjectOpen(false);
-                setSubjectFormData({ nama: '', hari: '', jam_mulai: '', jam_selesai: '' });
+                setSubjectFormData({ nama: '' });
                 toast.success('Mata pelajaran berhasil ditambahkan.');
                 // Reload to refresh subjects list
                 router.reload({ only: ['subjects'] });
@@ -203,7 +212,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
 
     const formatSubjectDisplay = (subjects: Subject[] | undefined): string => {
         if (!subjects || subjects.length === 0) return '-';
-        return subjects.map(s => `${s.nama} (${s.hari} ${s.jam_mulai}-${s.jam_selesai})`).join(', ');
+        return subjects.map(s => s.nama).join(', ');
     };
 
     const handlePrintQRSingle = (teacher: Teacher) => {
@@ -274,13 +283,14 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                         <Printer className="mr-2 h-4 w-4" />
                         {isLoadingQR ? 'Memuat...' : 'Cetak Semua QR'}
                     </Button>
-                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Tambah Guru
-                            </Button>
-                        </DialogTrigger>
+                    {currentUser?.role !== 'guru' && (
+                        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Tambah Guru
+                                </Button>
+                            </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>Tambah Guru Baru</DialogTitle>
@@ -355,12 +365,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                                         htmlFor={`subject-${subject.id}`}
                                                                         className="text-sm font-normal cursor-pointer flex-1"
                                                                     >
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="font-medium">{subject.nama}</span>
-                                                                            <span className="text-muted-foreground ml-2 text-xs">
-                                                                                {subject.hari} {subject.jam_mulai}-{subject.jam_selesai}
-                                                                            </span>
-                                                                        </div>
+                                                                        <span className="font-medium">{subject.nama}</span>
                                                                     </Label>
                                                                 </div>
                                                             ))}
@@ -400,6 +405,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                             </form>
                         </DialogContent>
                     </Dialog>
+                    )}
                     </div>
                 </div>
 
@@ -477,7 +483,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                             {teacher.subjects && teacher.subjects.length > 0 ? (
                                                                 teacher.subjects.map((subject) => (
                                                                     <Badge key={subject.id} variant="secondary" className="text-xs">
-                                                                        {subject.nama} ({subject.hari} {subject.jam_mulai}-{subject.jam_selesai})
+                                                                        {subject.nama}
                                                                     </Badge>
                                                                 ))
                                                             ) : (
@@ -498,20 +504,24 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                             >
                                                                 <QrCode className="h-4 w-4" />
                                                             </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEdit(teacher)}
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleDelete(teacher)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
+                                                            {currentUser?.role !== 'guru' && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleEdit(teacher)}
+                                                                    >
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleDelete(teacher)}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -570,6 +580,11 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                         </DialogHeader>
                         <form onSubmit={handleUpdate}>
                             <div className="space-y-4 py-4">
+                                {isEditingOwnTeacher() && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                                        Anda sedang mengedit mapel guru Anda sendiri. Hanya mata pelajaran yang dapat diubah.
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label htmlFor="edit_nip">NIP</Label>
                                     <Input
@@ -578,6 +593,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                         value={formData.nip}
                                         onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
                                         required
+                                        disabled={isEditingOwnTeacher()}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -588,6 +604,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         required
+                                        disabled={isEditingOwnTeacher()}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -635,12 +652,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                                                     htmlFor={`edit-subject-${subject.id}`}
                                                                     className="text-sm font-normal cursor-pointer flex-1"
                                                                 >
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="font-medium">{subject.nama}</span>
-                                                                        <span className="text-muted-foreground ml-2 text-xs">
-                                                                            {subject.hari} {subject.jam_mulai}-{subject.jam_selesai}
-                                                                        </span>
-                                                                    </div>
+                                                                    <span className="font-medium">{subject.nama}</span>
                                                                 </Label>
                                                             </div>
                                                         ))}
@@ -745,47 +757,6 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                                         onChange={(e) => setSubjectFormData({ ...subjectFormData, nama: e.target.value })}
                                         required
                                     />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="subject_hari">Hari</Label>
-                                    <Select
-                                        value={subjectFormData.hari}
-                                        onValueChange={(value) => setSubjectFormData({ ...subjectFormData, hari: value })}
-                                        required
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Pilih Hari" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((day) => (
-                                                <SelectItem key={day} value={day}>
-                                                    {day}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="subject_jam_mulai">Jam Mulai</Label>
-                                        <Input
-                                            id="subject_jam_mulai"
-                                            type="time"
-                                            value={subjectFormData.jam_mulai}
-                                            onChange={(e) => setSubjectFormData({ ...subjectFormData, jam_mulai: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="subject_jam_selesai">Jam Selesai</Label>
-                                        <Input
-                                            id="subject_jam_selesai"
-                                            type="time"
-                                            value={subjectFormData.jam_selesai}
-                                            onChange={(e) => setSubjectFormData({ ...subjectFormData, jam_selesai: e.target.value })}
-                                            required
-                                        />
-                                    </div>
                                 </div>
                             </div>
                             <DialogFooter>

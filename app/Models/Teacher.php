@@ -19,4 +19,12 @@ class Teacher extends Model
     {
         return $this->belongsToMany(Subject::class, 'teacher_subject');
     }
+
+    /**
+     * Get the user associated with this teacher.
+     */
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
 }

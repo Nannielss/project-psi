@@ -67,6 +67,29 @@ class TeacherController extends Controller
      */
     public function update(Request $request, Teacher $teacher)
     {
+        $user = auth()->user();
+        
+        // If user is guru, they can only edit their own teacher record
+        if ($user && $user->role === 'guru') {
+            // Check if this teacher is linked to the current user
+            if (!$user->teacher_id || $user->teacher_id !== $teacher->id) {
+                abort(403, 'Anda hanya dapat mengedit mapel guru Anda sendiri.');
+            }
+            
+            // Guru can only update subject_ids, not nip or name
+            $validated = $request->validate([
+                'subject_ids' => 'nullable|array',
+                'subject_ids.*' => 'exists:subjects,id',
+            ]);
+            
+            // Sync subjects only
+            $teacher->subjects()->sync($validated['subject_ids'] ?? []);
+            
+            return redirect()->route('teachers.index')
+                ->with('success', 'Mapel berhasil diperbarui.');
+        }
+        
+        // Admin, kajur, wakajur can edit everything
         $validated = $request->validate([
             'nip' => 'required|string|max:255|unique:teachers,nip,' . $teacher->id,
             'name' => 'required|string|max:255',

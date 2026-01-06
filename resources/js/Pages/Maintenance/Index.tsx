@@ -40,6 +40,7 @@ interface MaintenancePageProps extends PageProps {
     };
     filters: {
         search?: string;
+        condition?: string;
     };
     flash?: {
         success?: string;
@@ -49,6 +50,9 @@ interface MaintenancePageProps extends PageProps {
 
 export default function Maintenance({ units, filters }: MaintenancePageProps) {
     const { flash } = usePage<MaintenancePageProps>().props;
+    const [activeTab, setActiveTab] = useState<'damaged' | 'scrapped'>(
+        (filters?.condition as 'damaged' | 'scrapped') || 'damaged'
+    );
     const [search, setSearch] = useState(filters?.search || '');
     const [selectedUnit, setSelectedUnit] = useState<ToolUnit | null>(null);
     const [actionType, setActionType] = useState<'repair' | 'scrap' | null>(null);
@@ -65,9 +69,23 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
         }
     }, [flash]);
 
+    const handleTabChange = (tab: 'damaged' | 'scrapped') => {
+        setActiveTab(tab);
+        router.get('/maintenance', { 
+            search: search || undefined,
+            condition: tab 
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/maintenance', { search }, {
+        router.get('/maintenance', { 
+            search: search || undefined,
+            condition: activeTab 
+        }, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -87,13 +105,18 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
             ? `/maintenance/${selectedUnit.id}/repair`
             : `/maintenance/${selectedUnit.id}/scrap`;
 
-        router.post(route, {}, {
+                                        router.post(route, {}, {
             preserveScroll: true,
             onSuccess: () => {
                 setIsDialogOpen(false);
                 setSelectedUnit(null);
                 setActionType(null);
                 setIsProcessing(false);
+                // Reload with current tab
+                router.get('/maintenance', { condition: activeTab }, {
+                    preserveState: true,
+                    preserveScroll: true,
+                });
             },
             onError: (errors) => {
                 setIsProcessing(false);
@@ -138,12 +161,32 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Daftar Alat Rusak</CardTitle>
+                        <CardTitle>Daftar Alat Maintenance</CardTitle>
                         <CardDescription>
-                            Daftar unit alat yang perlu diperbaiki atau ditandai sebagai rusak total
+                            Kelola alat yang belum ditindak dan alat yang rusak total
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        {/* Tabs */}
+                        <div className="flex gap-2 border-b">
+                            <Button
+                                type="button"
+                                variant={activeTab === 'damaged' ? 'default' : 'ghost'}
+                                onClick={() => handleTabChange('damaged')}
+                                className="rounded-b-none"
+                            >
+                                Belum Ditindak
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={activeTab === 'scrapped' ? 'default' : 'ghost'}
+                                onClick={() => handleTabChange('scrapped')}
+                                className="rounded-b-none"
+                            >
+                                Rusak Total
+                            </Button>
+                        </div>
+
                         {/* Search */}
                         <form onSubmit={handleSearch} className="flex gap-2">
                             <div className="relative flex-1">
@@ -162,7 +205,7 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                                     variant="outline"
                                     onClick={() => {
                                         setSearch('');
-                                        router.get('/maintenance', {}, {
+                                        router.get('/maintenance', { condition: activeTab }, {
                                             preserveState: true,
                                             preserveScroll: true,
                                         });
@@ -177,7 +220,11 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                         {units.data.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
                                 <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <p>Tidak ada alat rusak yang perlu diperbaiki</p>
+                                <p>
+                                    {activeTab === 'damaged' 
+                                        ? 'Tidak ada alat rusak yang perlu diperbaiki'
+                                        : 'Tidak ada alat yang rusak total'}
+                                </p>
                             </div>
                         ) : (
                             <>
@@ -190,7 +237,9 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                                                 <TableHead>Lokasi</TableHead>
                                                 <TableHead>Deskripsi Kerusakan</TableHead>
                                                 <TableHead>Tanggal</TableHead>
-                                                <TableHead className="text-right">Aksi</TableHead>
+                                                {activeTab === 'damaged' && (
+                                                    <TableHead className="text-right">Aksi</TableHead>
+                                                )}
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -219,27 +268,29 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                                                             year: 'numeric',
                                                         })}
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="default"
-                                                                className="bg-green-600 hover:bg-green-700"
-                                                                onClick={() => handleAction(unit, 'repair')}
-                                                            >
-                                                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                                                Sudah Diperbaiki
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                onClick={() => handleAction(unit, 'scrap')}
-                                                            >
-                                                                <XCircle className="h-4 w-4 mr-1" />
-                                                                Rusak Total
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
+                                                    {activeTab === 'damaged' && (
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="default"
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                    onClick={() => handleAction(unit, 'repair')}
+                                                                >
+                                                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                                                    Sudah Diperbaiki
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    onClick={() => handleAction(unit, 'scrap')}
+                                                                >
+                                                                    <XCircle className="h-4 w-4 mr-1" />
+                                                                    Rusak Total
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             ))}
                                         </TableBody>

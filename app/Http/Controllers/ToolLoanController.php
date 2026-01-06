@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Csv;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ToolLoanController extends Controller
 {
@@ -619,6 +623,127 @@ class ToolLoanController extends Controller
             'loans' => $loans,
             'filters' => $request->only(['search', 'status', 'date_from', 'date_to']),
         ]);
+    }
+
+    /**
+     * Export history to CSV or Excel.
+     */
+    public function exportHistory(Request $request)
+    {
+        $format = $request->get('format', 'excel'); // 'csv' or 'excel'
+        
+        $query = ToolLoan::with(['student.major', 'toolUnit.tool']);
+
+        // Apply same filters as history page
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('student', function ($q) use ($search) {
+                    $q->where('nis', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('toolUnit', function ($q) use ($search) {
+                    $q->where('unit_code', 'like', "%{$search}%")
+                        ->orWhereHas('tool', function ($q) use ($search) {
+                            $q->where('code', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
+                });
+            });
+        }
+
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('date_from') && $request->date_from) {
+            $query->whereDate('borrowed_at', '>=', $request->date_from);
+        }
+        if ($request->has('date_to') && $request->date_to) {
+            $query->whereDate('borrowed_at', '<=', $request->date_to);
+        }
+
+        $loans = $query->orderBy('borrowed_at', 'desc')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Set headers
+        $headers = [
+            'Tanggal Pinjam',
+            'NIS',
+            'Nama Siswa',
+            'Jurusan',
+            'Kelas',
+            'Kode Unit',
+            'Nama Alat',
+            'Lokasi Alat',
+            'Status',
+            'Tanggal Kembali',
+            'Kondisi Kembali',
+            'Catatan',
+        ];
+        $sheet->fromArray([$headers], null, 'A1');
+
+        // Set header style
+        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+
+        // Add data rows
+        $row = 2;
+        foreach ($loans as $loan) {
+            $sheet->setCellValue('A' . $row, $loan->borrowed_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, $loan->student->nis ?? '');
+            $sheet->setCellValue('C' . $row, $loan->student->name ?? '');
+            $sheet->setCellValue('D' . $row, $loan->student->major->name ?? '');
+            $sheet->setCellValue('E' . $row, $loan->student->class ?? '');
+            $sheet->setCellValue('F' . $row, $loan->toolUnit->unit_code ?? '');
+            $sheet->setCellValue('G' . $row, $loan->toolUnit->tool->name ?? '');
+            $sheet->setCellValue('H' . $row, $loan->toolUnit->tool->location ?? '');
+            $sheet->setCellValue('I' . $row, $loan->status === 'borrowed' ? 'Dipinjam' : 'Dikembalikan');
+            $sheet->setCellValue('J' . $row, $loan->returned_at ? $loan->returned_at->format('Y-m-d H:i:s') : '');
+            
+            $conditionLabels = [
+                'good' => 'Baik',
+                'damaged' => 'Rusak',
+                'service' => 'Perlu Service',
+            ];
+            $sheet->setCellValue('K' . $row, $loan->return_condition ? ($conditionLabels[$loan->return_condition] ?? $loan->return_condition) : '');
+            $sheet->setCellValue('L' . $row, $loan->notes ?? '');
+            
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'riwayat_peminjaman_' . date('Y-m-d_His') . ($format === 'csv' ? '.csv' : '.xlsx');
+
+        if ($format === 'csv') {
+            $writer = new Csv($spreadsheet);
+            $writer->setDelimiter(',');
+            $writer->setEnclosure('"');
+            $writer->setLineEnding("\r\n");
+            
+            return new StreamedResponse(function () use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        } else {
+            $writer = new Xlsx($spreadsheet);
+            
+            return new StreamedResponse(function () use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        }
     }
 
     /**

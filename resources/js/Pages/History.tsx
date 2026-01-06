@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, X, Eye } from 'lucide-react';
+import { Search, X, Eye, Download, FileSpreadsheet } from 'lucide-react';
 import { PageProps, ToolLoan } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -108,6 +108,17 @@ export default function History({ loans, filters }: HistoryPageProps) {
         router.get('/history');
     };
 
+    const handleExport = (format: 'csv' | 'excel') => {
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (status && status !== 'all') params.append('status', status);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        params.append('format', format);
+        
+        window.location.href = `/history/export?${params.toString()}`;
+    };
+
     const getStatusBadge = (loanStatus: string) => {
         if (loanStatus === 'borrowed') {
             return <Badge variant="default">Dipinjam</Badge>;
@@ -156,10 +167,32 @@ export default function History({ loans, filters }: HistoryPageProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Filter & Pencarian</CardTitle>
-                        <CardDescription>
-                            Cari riwayat berdasarkan siswa, alat, status, atau tanggal
-                        </CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Filter & Pencarian</CardTitle>
+                                <CardDescription>
+                                    Cari riwayat berdasarkan siswa, alat, status, atau tanggal
+                                </CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleExport('csv')}
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export CSV
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleExport('excel')}
+                                >
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Export Excel
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSearch} className="space-y-4">

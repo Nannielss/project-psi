@@ -9,6 +9,8 @@ export interface User {
     avatar?: string;
     created_at?: string;
     updated_at?: string;
+    teacher_id?: number;
+    teacher?: Teacher;
 }
 
 export interface Major {
@@ -33,9 +35,6 @@ export interface Student {
 export interface Subject {
     id: number;
     nama: string;
-    hari: string;
-    jam_mulai: string;
-    jam_selesai: string;
     created_at?: string;
     updated_at?: string;
 }

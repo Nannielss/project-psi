@@ -11,6 +11,7 @@ use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\ToolLoanController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\PrintQRController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -26,6 +27,7 @@ Route::get('/', function () {
 
 Route::get('/dashboard', [ToolLoanController::class, 'dashboard'])->middleware(['auth', 'verified'])->name('dashboard');
 Route::get('/history', [ToolLoanController::class, 'history'])->middleware(['auth', 'verified'])->name('history');
+Route::get('/history/export', [ToolLoanController::class, 'exportHistory'])->middleware(['auth', 'verified'])->name('history.export');
 
 // Tool Loans - Public routes (no auth required)
 Route::get('tool-loans', [ToolLoanController::class, 'indexPage'])->name('tool-loans.index-page');
@@ -60,9 +62,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('teachers', TeacherController::class);
     Route::resource('subjects', SubjectController::class);
 
-    // Materials CRUD - kepala jurusan only
-    Route::middleware('role:kajur')->group(function () {
-        Route::resource('materials', MaterialController::class);
+    // Materials - all authenticated users can view, but only non-guru can CRUD
+    Route::get('materials', [MaterialController::class, 'index'])->name('materials.index');
+    Route::middleware('role:admin,kajur,wakajur')->group(function () {
+        Route::post('materials', [MaterialController::class, 'store'])->name('materials.store');
+        Route::put('materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
+        Route::delete('materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
     });
 
     // Tools CRUD - specific routes before resource
@@ -75,12 +80,19 @@ Route::middleware('auth')->group(function () {
     Route::put('tools/{tool}/units/{unit}', [ToolController::class, 'updateUnit'])->name('tools.units.update');
     Route::delete('tools/{tool}/units/{unit}', [ToolController::class, 'deleteUnit'])->name('tools.units.delete');
 
-    // Material pickup - kepala jurusan + guru
-    Route::middleware('role:kajur,guru')->group(function () {
+    // Material pickup - admin, kepala jurusan, wakajur + guru
+    Route::middleware('role:admin,kajur,wakajur,guru')->group(function () {
         Route::get('material-pickups', [MaterialPickupController::class, 'index'])->name('material-pickups.index');
         Route::get('material-pickups/create', [MaterialPickupController::class, 'create'])->name('material-pickups.create');
         Route::post('material-pickups', [MaterialPickupController::class, 'store'])->name('material-pickups.store');
         Route::post('material-pickups/verify-qr', [MaterialPickupController::class, 'verifyQR'])->name('material-pickups.verify-qr');
+        
+        // Materials CRUD within material-pickups page - non-guru only
+        Route::middleware('role:admin,kajur,wakajur')->group(function () {
+            Route::post('material-pickups/materials', [MaterialPickupController::class, 'storeMaterial'])->name('material-pickups.materials.store');
+            Route::put('material-pickups/materials/{material}', [MaterialPickupController::class, 'updateMaterial'])->name('material-pickups.materials.update');
+            Route::delete('material-pickups/materials/{material}', [MaterialPickupController::class, 'destroyMaterial'])->name('material-pickups.materials.destroy');
+        });
     });
 
     // Maintenance routes
@@ -88,10 +100,13 @@ Route::middleware('auth')->group(function () {
     Route::post('maintenance/{unit}/repair', [MaintenanceController::class, 'markAsRepaired'])->name('maintenance.repair');
     Route::post('maintenance/{unit}/scrap', [MaintenanceController::class, 'markAsScrapped'])->name('maintenance.scrap');
 
-    // Users CRUD - kepala jurusan only
-    Route::middleware('role:kajur')->group(function () {
+    // Users CRUD - admin, kajur, wakajur only
+    Route::middleware('role:admin,kajur,wakajur')->group(function () {
         Route::resource('users', UserController::class);
     });
+
+    // Print QR
+    Route::get('print-qr', [PrintQRController::class, 'index'])->name('print-qr.index');
 
 });
 

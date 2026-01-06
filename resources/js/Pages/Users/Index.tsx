@@ -31,7 +31,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
-import { PageProps, User } from '@/types';
+import { PageProps, User, Teacher } from '@/types';
 import { toast } from 'sonner';
 
 interface UsersPageProps extends PageProps {
@@ -47,6 +47,7 @@ interface UsersPageProps extends PageProps {
             active: boolean;
         }>;
     };
+    teachers: Teacher[];
     filters: {
         search?: string;
         role?: string;
@@ -57,7 +58,7 @@ interface UsersPageProps extends PageProps {
     };
 }
 
-export default function Index({ users, filters }: UsersPageProps) {
+export default function Index({ users, teachers, filters }: UsersPageProps) {
     const { flash, auth } = usePage<UsersPageProps>().props;
     const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
@@ -69,7 +70,8 @@ export default function Index({ users, filters }: UsersPageProps) {
     const [formData, setFormData] = useState({
         username: '',
         password: '',
-        role: '' as 'kajur' | 'guru' | '',
+        role: '' as 'admin' | 'kajur' | 'wakajur' | 'guru' | '',
+        teacher_id: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -97,10 +99,19 @@ export default function Index({ users, filters }: UsersPageProps) {
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        router.post('/users', formData, {
+        const submitData: any = {
+            username: formData.username,
+            password: formData.password,
+            role: formData.role,
+        };
+        const rolesCanLinkTeacher = ['guru', 'kajur', 'wakajur'];
+        if (rolesCanLinkTeacher.includes(formData.role) && formData.teacher_id) {
+            submitData.teacher_id = formData.teacher_id;
+        }
+        router.post('/users', submitData, {
             onSuccess: () => {
                 setIsCreateOpen(false);
-                setFormData({ username: '', password: '', role: '' });
+                setFormData({ username: '', password: '', role: '', teacher_id: '' });
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -110,11 +121,18 @@ export default function Index({ users, filters }: UsersPageProps) {
     };
 
     const handleEdit = (user: User) => {
+        // Prevent non-admin from editing admin users
+        if (user.role === 'admin' && currentUser?.role !== 'admin') {
+            toast.error('Hanya admin yang dapat mengedit user dengan role admin.');
+            return;
+        }
+        
         setSelectedUser(user);
         setFormData({
             username: user.username,
             password: '',
-            role: (user.role as 'kajur' | 'guru') || '',
+            role: (user.role as 'admin' | 'kajur' | 'wakajur' | 'guru') || '',
+            teacher_id: (user as any).teacher_id?.toString() || '',
         });
         setIsEditOpen(true);
     };
@@ -132,12 +150,18 @@ export default function Index({ users, filters }: UsersPageProps) {
         if (formData.password) {
             updateData.password = formData.password;
         }
+        const rolesCanLinkTeacher = ['guru', 'kajur', 'wakajur'];
+        if (rolesCanLinkTeacher.includes(formData.role)) {
+            updateData.teacher_id = formData.teacher_id || null;
+        } else {
+            updateData.teacher_id = null;
+        }
 
         router.put(`/users/${selectedUser.id}`, updateData, {
             onSuccess: () => {
                 setIsEditOpen(false);
                 setSelectedUser(null);
-                setFormData({ username: '', password: '', role: '' });
+                setFormData({ username: '', password: '', role: '', teacher_id: '' });
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -162,16 +186,31 @@ export default function Index({ users, filters }: UsersPageProps) {
     };
 
     const getRoleBadgeVariant = (role: string | undefined) => {
+        if (role === 'admin') return 'default';
         if (role === 'kajur') return 'default';
+        if (role === 'wakajur') return 'default';
         if (role === 'guru') return 'secondary';
         return 'outline';
     };
 
     const getRoleLabel = (role: string | undefined) => {
+        if (role === 'admin') return 'Admin';
         if (role === 'kajur') return 'Kepala Jurusan';
+        if (role === 'wakajur') return 'Wakil Kepala Jurusan';
         if (role === 'guru') return 'Guru';
         return 'Tidak Ada Role';
     };
+
+    const canCreateRoleAdmin = currentUser?.role === 'admin';
+    const canCreateRoleKajur = currentUser?.role !== 'wakajur';
+    
+    let availableRoles = ['kajur', 'wakajur', 'guru'];
+    if (canCreateRoleAdmin) {
+        availableRoles = ['admin', ...availableRoles];
+    }
+    if (!canCreateRoleKajur) {
+        availableRoles = availableRoles.filter(role => role !== 'kajur');
+    }
 
     return (
         <DashboardLayout>
@@ -227,18 +266,55 @@ export default function Index({ users, filters }: UsersPageProps) {
                                         <Label htmlFor="role">Role</Label>
                                         <Select
                                             value={formData.role}
-                                            onValueChange={(value) => setFormData({ ...formData, role: value as 'kajur' | 'guru' })}
+                                            onValueChange={(value) => {
+                                                const newRole = value as 'admin' | 'kajur' | 'wakajur' | 'guru';
+                                                const rolesCanLinkTeacher = ['guru', 'kajur', 'wakajur'];
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    role: newRole,
+                                                    teacher_id: rolesCanLinkTeacher.includes(newRole) ? formData.teacher_id : ''
+                                                });
+                                            }}
                                             required
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Pilih role" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="kajur">Kepala Jurusan</SelectItem>
-                                                <SelectItem value="guru">Guru</SelectItem>
+                                                {availableRoles.map((role) => (
+                                                    <SelectItem key={role} value={role}>
+                                                        {getRoleLabel(role)}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                    {(formData.role === 'guru' || formData.role === 'kajur' || formData.role === 'wakajur') && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="teacher_id">Link Guru</Label>
+                                            <Select
+                                                value={formData.teacher_id}
+                                                onValueChange={(value) => setFormData({ ...formData, teacher_id: value })}
+                                                required={formData.role === 'guru'}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Pilih Guru" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {teachers.map((teacher) => (
+                                                        <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                                            {teacher.name} ({teacher.nip})
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formData.role === 'guru' 
+                                                    ? 'Pilih guru yang akan di-link dengan user ini (wajib)'
+                                                    : 'Pilih guru yang akan di-link dengan user ini (opsional)'}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                                 <DialogFooter>
                                     <Button
@@ -282,7 +358,9 @@ export default function Index({ users, filters }: UsersPageProps) {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Semua Role</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="kajur">Kepala Jurusan</SelectItem>
+                                        <SelectItem value="wakajur">Wakil Kepala Jurusan</SelectItem>
                                         <SelectItem value="guru">Guru</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -331,6 +409,7 @@ export default function Index({ users, filters }: UsersPageProps) {
                                             <TableRow>
                                                 <TableHead>Username</TableHead>
                                                 <TableHead>Role</TableHead>
+                                                <TableHead>Guru Terkait</TableHead>
                                                 <TableHead>Tanggal Dibuat</TableHead>
                                                 <TableHead className="text-right">Aksi</TableHead>
                                             </TableRow>
@@ -352,6 +431,15 @@ export default function Index({ users, filters }: UsersPageProps) {
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
+                                                        {(user as any).teacher ? (
+                                                            <span className="text-sm">
+                                                                {(user as any).teacher.name} ({(user as any).teacher.nip})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-sm">-</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
                                                         {user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
@@ -360,6 +448,8 @@ export default function Index({ users, filters }: UsersPageProps) {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => handleEdit(user)}
+                                                                disabled={user.role === 'admin' && currentUser?.role !== 'admin'}
+                                                                title={user.role === 'admin' && currentUser?.role !== 'admin' ? 'Hanya admin yang dapat mengedit user admin' : 'Edit'}
                                                             >
                                                                 <Edit className="h-4 w-4" />
                                                             </Button>
@@ -367,8 +457,14 @@ export default function Index({ users, filters }: UsersPageProps) {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => handleDelete(user)}
-                                                                disabled={currentUser?.id === user.id}
-                                                                title={currentUser?.id === user.id ? 'Tidak dapat menghapus akun sendiri' : 'Hapus'}
+                                                                disabled={currentUser?.id === user.id || (user.role === 'admin' && currentUser?.role !== 'admin')}
+                                                                title={
+                                                                    currentUser?.id === user.id 
+                                                                        ? 'Tidak dapat menghapus akun sendiri' 
+                                                                        : user.role === 'admin' && currentUser?.role !== 'admin'
+                                                                        ? 'Hanya admin yang dapat menghapus user admin'
+                                                                        : 'Hapus'
+                                                                }
                                                             >
                                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                                             </Button>
@@ -458,18 +554,61 @@ export default function Index({ users, filters }: UsersPageProps) {
                                     <Label htmlFor="edit_role">Role</Label>
                                     <Select
                                         value={formData.role}
-                                        onValueChange={(value) => setFormData({ ...formData, role: value as 'kajur' | 'guru' })}
+                                        onValueChange={(value) => {
+                                            const newRole = value as 'admin' | 'kajur' | 'wakajur' | 'guru';
+                                            const rolesCanLinkTeacher = ['guru', 'kajur', 'wakajur'];
+                                            setFormData({ 
+                                                ...formData, 
+                                                role: newRole,
+                                                teacher_id: rolesCanLinkTeacher.includes(newRole) ? formData.teacher_id : ''
+                                            });
+                                        }}
                                         required
+                                        disabled={selectedUser?.role === 'admin' && currentUser?.role !== 'admin'}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Pilih role" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="kajur">Kepala Jurusan</SelectItem>
-                                            <SelectItem value="guru">Guru</SelectItem>
+                                            {availableRoles.map((role) => (
+                                                <SelectItem key={role} value={role}>
+                                                    {getRoleLabel(role)}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
+                                    {selectedUser?.role === 'admin' && currentUser?.role !== 'admin' && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Role tidak dapat diubah untuk user admin
+                                        </p>
+                                    )}
                                 </div>
+                                {(formData.role === 'guru' || formData.role === 'kajur' || formData.role === 'wakajur') && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit_teacher_id">Link Guru</Label>
+                                        <Select
+                                            value={formData.teacher_id}
+                                            onValueChange={(value) => setFormData({ ...formData, teacher_id: value })}
+                                            required={formData.role === 'guru'}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Pilih Guru" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {teachers.map((teacher) => (
+                                                    <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                                        {teacher.name} ({teacher.nip})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formData.role === 'guru' 
+                                                ? 'Pilih guru yang akan di-link dengan user ini (wajib)'
+                                                : 'Pilih guru yang akan di-link dengan user ini (opsional)'}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             <DialogFooter>
                                 <Button

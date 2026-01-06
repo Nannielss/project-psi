@@ -60,7 +60,8 @@ interface ToolsPageProps extends PageProps {
 }
 
 export default function Index({ tools, filters }: ToolsPageProps) {
-    const { flash } = usePage<ToolsPageProps>().props;
+    const { flash, auth } = usePage<ToolsPageProps>().props;
+    const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
     const [conditionFilter, setConditionFilter] = useState(filters.condition || 'all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -138,7 +139,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        
+
         const formDataToSend = new FormData();
         formDataToSend.append('code', formData.code);
         formDataToSend.append('name', formData.name);
@@ -357,14 +358,14 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         setSelectedToolForQR(null);
         setQrPrintMode('all');
         setIsLoadingQR(true);
-        
+
         try {
             // Build query params with current filters
             const params: Record<string, string> = {};
             if (search) params.search = search;
-            
+
             const response = await window.axios.get('/tools/for-qr', { params });
-            
+
             if (response.data && response.data.data) {
                 setQrData(response.data.data);
                 setIsQRPrintOpen(true);
@@ -416,69 +417,71 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                             <Printer className="mr-2 h-4 w-4" />
                             {isLoadingQR ? 'Memuat...' : 'Cetak Semua QR'}
                         </Button>
-                        <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline">
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Import Excel
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Import Alat dari Excel</DialogTitle>
-                                    <DialogDescription>
-                                        Upload file Excel dengan format: code, name, location, description. Jumlah unit akan diambil otomatis dari angka ke-5 pada kode alat (contoh: WK.09.03.131.1.2025 → jumlah unit = 1).
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleImport}>
-                                    <div className="space-y-4 py-4">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex-1">
-                                                <Label htmlFor="file">File Excel</Label>
-                                                <Input
-                                                    id="file"
-                                                    type="file"
-                                                    accept=".xlsx,.xls"
-                                                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                                                    required
-                                                    className="mt-2"
-                                                />
+                        {currentUser?.role !== 'guru' && (
+                            <>
+                                <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline">
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            Import Excel
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Import Alat dari Excel</DialogTitle>
+                                            <DialogDescription>
+                                                Upload file Excel dengan format: code, name, location, description. Jumlah unit akan diambil otomatis dari angka ke-5 pada kode alat (contoh: WK.09.03.131.1.2025 → jumlah unit = 1).
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleImport}>
+                                            <div className="space-y-4 py-4">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex-1">
+                                                        <Label htmlFor="file">File Excel</Label>
+                                                        <Input
+                                                            id="file"
+                                                            type="file"
+                                                            accept=".xlsx,.xls"
+                                                            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                                            required
+                                                            className="mt-2"
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            window.open('/tools/import/template', '_blank');
+                                                        }}
+                                                        className="mt-8"
+                                                    >
+                                                        <Download className="mr-2 h-4 w-4" />
+                                                        Download Template
+                                                    </Button>
+                                                </div>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    window.open('/tools/import/template', '_blank');
-                                                }}
-                                                className="mt-8"
-                                            >
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download Template
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setIsImportOpen(false)}
-                                        >
-                                            Batal
+                                            <DialogFooter>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setIsImportOpen(false)}
+                                                >
+                                                    Batal
+                                                </Button>
+                                                <Button type="submit" disabled={!importFile || isSubmitting}>
+                                                    {isSubmitting ? 'Mengimpor...' : 'Import'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Tambah Alat
                                         </Button>
-                                        <Button type="submit" disabled={!importFile || isSubmitting}>
-                                            {isSubmitting ? 'Mengimpor...' : 'Import'}
-                                        </Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Tambah Alat
-                                </Button>
-                            </DialogTrigger>
+                                    </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle>Tambah Alat Baru</DialogTitle>
@@ -599,6 +602,8 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                 </form>
                             </DialogContent>
                         </Dialog>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -750,20 +755,24 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                             >
                                                                 <Package className="h-4 w-4" />
                                                             </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEdit(tool)}
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleDelete(tool)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
+                                                            {currentUser?.role !== 'guru' && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleEdit(tool)}
+                                                                    >
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleDelete(tool)}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -980,6 +989,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                     Tambah Unit
                                 </Button>
                             </div>
+                            
                             {units.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     Belum ada unit
@@ -1010,22 +1020,24 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                                         {unit.description || '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEditUnit(unit)}
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleDeleteUnit(unit)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
-                                                        </div>
+                                                        {currentUser?.role !== 'guru' && (
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleEditUnit(unit)}
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteUnit(unit)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -1166,8 +1178,8 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                     open={isQRPrintOpen}
                     onOpenChange={setIsQRPrintOpen}
                     items={getQRItems()}
-                    title={qrPrintMode === 'single' 
-                        ? `Cetak QR - ${selectedToolForQR?.name || ''}` 
+                    title={qrPrintMode === 'single'
+                        ? `Cetak QR - ${selectedToolForQR?.name || ''}`
                         : 'Cetak QR Semua Alat'}
                     description={qrPrintMode === 'single'
                         ? `QR Code untuk ${selectedToolForQR?.total_units || 0} unit alat`
@@ -1178,4 +1190,3 @@ export default function Index({ tools, filters }: ToolsPageProps) {
         </DashboardLayout>
     );
 }
-

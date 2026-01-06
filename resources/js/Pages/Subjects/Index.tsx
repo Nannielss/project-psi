@@ -21,14 +21,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
 import { PageProps, Subject } from '@/types';
@@ -56,18 +48,9 @@ interface SubjectsPageProps extends PageProps {
     };
 }
 
-const DAYS = [
-    'Senin',
-    'Selasa',
-    'Rabu',
-    'Kamis',
-    'Jumat',
-    'Sabtu',
-    'Minggu',
-];
-
 export default function Index({ subjects, filters }: SubjectsPageProps) {
-    const { flash } = usePage<SubjectsPageProps>().props;
+    const { flash, auth } = usePage<SubjectsPageProps>().props;
+    const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -75,9 +58,6 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
     const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
     const [formData, setFormData] = useState({
         nama: '',
-        hari: '',
-        jam_mulai: '',
-        jam_selesai: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -107,7 +87,7 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
         router.post('/subjects', formData, {
             onSuccess: () => {
                 setIsCreateOpen(false);
-                setFormData({ nama: '', hari: '', jam_mulai: '', jam_selesai: '' });
+                setFormData({ nama: '' });
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -120,9 +100,6 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
         setSelectedSubject(subject);
         setFormData({
             nama: subject.nama,
-            hari: subject.hari,
-            jam_mulai: subject.jam_mulai,
-            jam_selesai: subject.jam_selesai,
         });
         setIsEditOpen(true);
     };
@@ -135,7 +112,7 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
             onSuccess: () => {
                 setIsEditOpen(false);
                 setSelectedSubject(null);
-                setFormData({ nama: '', hari: '', jam_mulai: '', jam_selesai: '' });
+                setFormData({ nama: '' });
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -171,13 +148,14 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                             Kelola data mata pelajaran dengan CRUD dan pencarian
                         </p>
                     </div>
-                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Tambah Mata Pelajaran
-                            </Button>
-                        </DialogTrigger>
+                    {currentUser?.role !== 'guru' && (
+                        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Tambah Mata Pelajaran
+                                </Button>
+                            </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Tambah Mata Pelajaran Baru</DialogTitle>
@@ -197,47 +175,6 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                                             required
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="hari">Hari</Label>
-                                        <Select
-                                            value={formData.hari}
-                                            onValueChange={(value) => setFormData({ ...formData, hari: value })}
-                                            required
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih Hari" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DAYS.map((day) => (
-                                                    <SelectItem key={day} value={day}>
-                                                        {day}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="jam_mulai">Jam Mulai</Label>
-                                            <Input
-                                                id="jam_mulai"
-                                                type="time"
-                                                value={formData.jam_mulai}
-                                                onChange={(e) => setFormData({ ...formData, jam_mulai: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="jam_selesai">Jam Selesai</Label>
-                                            <Input
-                                                id="jam_selesai"
-                                                type="time"
-                                                value={formData.jam_selesai}
-                                                onChange={(e) => setFormData({ ...formData, jam_selesai: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button
@@ -254,13 +191,14 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                             </form>
                         </DialogContent>
                     </Dialog>
+                    )}
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Pencarian</CardTitle>
                         <CardDescription>
-                            Cari mata pelajaran berdasarkan nama atau hari
+                            Cari mata pelajaran berdasarkan nama
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -312,8 +250,6 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>Nama Mata Pelajaran</TableHead>
-                                                <TableHead>Hari</TableHead>
-                                                <TableHead>Jam</TableHead>
                                                 <TableHead>Tanggal Dibuat</TableHead>
                                                 <TableHead className="text-right">Aksi</TableHead>
                                             </TableRow>
@@ -325,34 +261,30 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                                                         {subject.nama}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary">{subject.hari}</Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {subject.jam_mulai} - {subject.jam_selesai}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {subject.created_at 
+                                                        {subject.created_at
                                                             ? new Date(subject.created_at).toLocaleDateString('id-ID')
                                                             : '-'
                                                         }
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEdit(subject)}
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleDelete(subject)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
-                                                        </div>
+                                                        {currentUser?.role !== 'guru' && (
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleEdit(subject)}
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDelete(subject)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -420,47 +352,6 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
                                         required
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_hari">Hari</Label>
-                                    <Select
-                                        value={formData.hari}
-                                        onValueChange={(value) => setFormData({ ...formData, hari: value })}
-                                        required
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Pilih Hari" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {DAYS.map((day) => (
-                                                <SelectItem key={day} value={day}>
-                                                    {day}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit_jam_mulai">Jam Mulai</Label>
-                                        <Input
-                                            id="edit_jam_mulai"
-                                            type="time"
-                                            value={formData.jam_mulai}
-                                            onChange={(e) => setFormData({ ...formData, jam_mulai: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit_jam_selesai">Jam Selesai</Label>
-                                        <Input
-                                            id="edit_jam_selesai"
-                                            type="time"
-                                            value={formData.jam_selesai}
-                                            onChange={(e) => setFormData({ ...formData, jam_selesai: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                </div>
                             </div>
                             <DialogFooter>
                                 <Button
@@ -511,6 +402,3 @@ export default function Index({ subjects, filters }: SubjectsPageProps) {
         </DashboardLayout>
     );
 }
-
-
-

@@ -6,6 +6,7 @@ use App\Models\Material;
 use App\Models\MaterialPickup;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,14 +14,11 @@ class MaterialPickupController extends Controller
 {
     /**
      * Show the form for creating a new material pickup.
+     * Redirect to materials page since it's now combined.
      */
-    public function create(): Response
+    public function create()
     {
-        $materials = Material::orderBy('nama_bahan')->get();
-
-        return Inertia::render('MaterialPickups/Create', [
-            'materials' => $materials,
-        ]);
+        return redirect()->route('materials.index');
     }
 
     /**
@@ -112,5 +110,76 @@ class MaterialPickupController extends Controller
             'pickups' => $pickups,
             'filters' => $request->only(['search', 'date_from', 'date_to']),
         ]);
+    }
+
+    /**
+     * Store a newly created material.
+     */
+    public function storeMaterial(Request $request)
+    {
+        $validated = $request->validate([
+            'nama_bahan' => 'required|string|max:255',
+            'stok' => 'required|integer|min:0',
+            'satuan' => 'required|string|max:255',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'keterangan' => 'nullable|string',
+        ]);
+
+        // Handle photo upload
+        if ($request->hasFile('foto')) {
+            $validated['foto'] = $request->file('foto')->store('materials', 'public');
+        }
+
+        Material::create($validated);
+
+        return redirect()->route('material-pickups.create')
+            ->with('success', 'Bahan berhasil ditambahkan.');
+    }
+
+    /**
+     * Update the specified material.
+     */
+    public function updateMaterial(Request $request, Material $material)
+    {
+        $validated = $request->validate([
+            'nama_bahan' => 'required|string|max:255',
+            'stok' => 'required|integer|min:0',
+            'satuan' => 'required|string|max:255',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'keterangan' => 'nullable|string',
+        ]);
+
+        // Handle photo upload
+        if ($request->hasFile('foto')) {
+            // Delete old photo if exists
+            if ($material->foto && Storage::disk('public')->exists($material->foto)) {
+                Storage::disk('public')->delete($material->foto);
+            }
+            $validated['foto'] = $request->file('foto')->store('materials', 'public');
+        } else {
+            // Keep existing photo if not uploading new one
+            unset($validated['foto']);
+        }
+
+        $material->update($validated);
+
+        return redirect()->route('material-pickups.create')
+            ->with('success', 'Bahan berhasil diperbarui.');
+    }
+
+    /**
+     * Remove the specified material.
+     */
+    public function destroyMaterial(Material $material)
+    {
+        // Delete photo if exists
+        if ($material->foto && Storage::disk('public')->exists($material->foto)) {
+            Storage::disk('public')->delete($material->foto);
+        }
+
+        $material->delete();
+
+        return redirect()->route('material-pickups.create')
+            ->with('success', 'Bahan berhasil dihapus.');
     }
 }
