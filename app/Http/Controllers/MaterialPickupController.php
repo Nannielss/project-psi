@@ -22,30 +22,6 @@ class MaterialPickupController extends Controller
     }
 
     /**
-     * Verify QR code and return teacher data.
-     */
-    public function verifyQR(Request $request)
-    {
-        $request->validate([
-            'nip' => 'required|string',
-        ]);
-
-        $teacher = Teacher::where('nip', $request->nip)->first();
-
-        if (!$teacher) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Guru dengan NIP tersebut tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'teacher' => $teacher->load('subjects'),
-        ]);
-    }
-
-    /**
      * Store a newly created material pickup.
      */
     public function store(Request $request)

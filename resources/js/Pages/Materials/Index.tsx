@@ -24,11 +24,9 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, Package, Camera, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, Package, CheckCircle2 } from 'lucide-react';
 import { PageProps, Material, Teacher } from '@/types';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { QRScanner } from '@/components/features/qr/QRScanner';
 
 interface MaterialsPageProps extends PageProps {
     materials: {
@@ -73,12 +71,8 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
 
     // Pickup modal states
     const [isPickupOpen, setIsPickupOpen] = useState(false);
-    const [pickupStep, setPickupStep] = useState(1);
     const [selectedMaterialForPickup, setSelectedMaterialForPickup] = useState<Material | null>(null);
     const [verifiedTeacher, setVerifiedTeacher] = useState<Teacher | null>(null);
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [verificationError, setVerificationError] = useState('');
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [pickupFormData, setPickupFormData] = useState({
         jumlah: 1,
         tanggal: new Date().toISOString().split('T')[0],
@@ -210,52 +204,20 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
 
     // Pickup handlers
     const handleOpenPickupModal = (material: Material) => {
+        // Langsung set teacher dari akun login (tanpa QR)
+        if (!currentUser?.teacher) {
+            toast.error('Anda tidak terdaftar sebagai guru');
+            return;
+        }
+
         setSelectedMaterialForPickup(material);
-        setVerifiedTeacher(null);
-        setPickupStep(1);
+        setVerifiedTeacher(currentUser.teacher);
         setPickupFormData({
             jumlah: 1,
             tanggal: new Date().toISOString().split('T')[0],
             keterangan: '',
         });
-        setVerificationError('');
         setIsPickupOpen(true);
-        setIsScannerOpen(true); // Open scanner immediately
-    };
-
-    const handleVerifyQR = async (nipToVerify?: string) => {
-        const nipValue = nipToVerify || '';
-        if (!nipValue) {
-            setVerificationError('NIP tidak valid');
-            return;
-        }
-
-        setIsVerifying(true);
-        setVerificationError('');
-
-        try {
-            const response = await axios.post('/material-pickups/verify-qr', { nip: nipValue });
-            if (response.data.success) {
-                setVerifiedTeacher(response.data.teacher);
-                setPickupStep(2);
-                toast.success('Identitas guru berhasil diverifikasi');
-            }
-        } catch (error: any) {
-            setVerificationError(
-                error.response?.data?.message || 'Guru dengan NIP tersebut tidak ditemukan'
-            );
-            setVerifiedTeacher(null);
-        } finally {
-            setIsVerifying(false);
-        }
-    };
-
-    const handleQRScanSuccess = (decodedText: string) => {
-        handleVerifyQR(decodedText);
-    };
-
-    const handleQRScanError = (error: string) => {
-        toast.error(error);
     };
 
     const handlePickupSubmit = async (e: React.FormEvent) => {
@@ -281,7 +243,6 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
             onSuccess: () => {
                 toast.success('Pengambilan bahan berhasil dicatat');
                 setIsPickupOpen(false);
-                setPickupStep(1);
                 setVerifiedTeacher(null);
                 setSelectedMaterialForPickup(null);
                 setPickupFormData({
@@ -303,11 +264,8 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
 
     const resetPickupModal = () => {
         setIsPickupOpen(false);
-        setPickupStep(1);
         setVerifiedTeacher(null);
         setSelectedMaterialForPickup(null);
-        setVerificationError('');
-        setIsScannerOpen(false);
         setPickupFormData({
             jumlah: 1,
             tanggal: new Date().toISOString().split('T')[0],
@@ -780,70 +738,11 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
                         <DialogHeader>
                             <DialogTitle>Ambil Bahan</DialogTitle>
                             <DialogDescription>
-                                {pickupStep === 1
-                                    ? 'Scan QR code guru untuk verifikasi identitas'
-                                    : 'Konfirmasi pengambilan bahan'}
+                                Konfirmasi pengambilan bahan
                             </DialogDescription>
                         </DialogHeader>
 
-                        {/* Step Indicator */}
-                        <div className="flex items-center gap-4 py-4">
-                            <div className={`flex items-center gap-2 ${pickupStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${pickupStep >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                                    }`}>
-                                    {pickupStep > 1 ? <CheckCircle2 className="h-4 w-4" /> : '1'}
-                                </div>
-                                <span className="font-medium">Verifikasi</span>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            <div className={`flex items-center gap-2 ${pickupStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${pickupStep >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                                    }`}>
-                                    2
-                                </div>
-                                <span className="font-medium">Konfirmasi</span>
-                            </div>
-                        </div>
-
-                        {/* Step 1: Verify Teacher */}
-                        {pickupStep === 1 && (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Scan QR Code Guru</Label>
-                                    <QRScanner
-                                        open={isScannerOpen}
-                                        onClose={() => setIsScannerOpen(false)}
-                                        onScanSuccess={handleQRScanSuccess}
-                                        onScanError={handleQRScanError}
-                                        inline={true}
-                                    />
-                                </div>
-
-                                {verificationError && (
-                                    <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md">
-                                        <XCircle className="h-4 w-4" />
-                                        <span className="text-sm">{verificationError}</span>
-                                    </div>
-                                )}
-
-                                {verifiedTeacher && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-green-900 dark:text-green-100">
-                                                Identitas Terverifikasi
-                                            </p>
-                                            <p className="text-sm text-green-700 dark:text-green-300">
-                                                {verifiedTeacher.name} (NIP: {verifiedTeacher.nip})
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Step 2: Confirm Pickup */}
-                        {pickupStep === 2 && verifiedTeacher && selectedMaterialForPickup && (
+                        {verifiedTeacher && selectedMaterialForPickup && (
                             <form onSubmit={handlePickupSubmit} className="space-y-4">
                                 <div className="p-3 bg-muted rounded-md space-y-2">
                                     <p className="text-sm font-medium">Guru: {verifiedTeacher.name}</p>
@@ -905,14 +804,6 @@ export default function Index({ materials, filters }: MaterialsPageProps) {
                                 </div>
 
                                 <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setPickupStep(1)}
-                                    >
-                                        <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Kembali
-                                    </Button>
                                     <Button
                                         type="submit"
                                         disabled={isSubmittingPickup || !pickupFormData.jumlah}

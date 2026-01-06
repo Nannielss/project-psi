@@ -10,6 +10,7 @@ class ToolLoan extends Model
 {
     protected $fillable = [
         'student_id',
+        'borrower_teacher_id',
         'tool_unit_id',
         'teacher_id',
         'subject_id',
@@ -49,6 +50,14 @@ class ToolLoan extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    /**
+     * Get the teacher who borrowed the tool (for teacher self-borrowing).
+     */
+    public function borrowerTeacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class, 'borrower_teacher_id');
     }
 
     /**

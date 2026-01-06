@@ -31,16 +31,38 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         
+            $userData = null;
+        if ($user) {
+            $userData = [
+                'id' => $user->id,
+                'username' => $user->username,
+                'role' => $user->role ?? null,
+                'photo' => $user->photo ?? null,
+                'avatar' => $user->photo ?? null, // Keep avatar for backward compatibility
+                'teacher_id' => $user->teacher_id ?? null,
+            ];
+            
+            // Load teacher relationship with subjects if teacher_id exists
+            if ($user->teacher_id) {
+                $user->load('teacher.subjects');
+                $userData['teacher'] = $user->teacher ? [
+                    'id' => $user->teacher->id,
+                    'nip' => $user->teacher->nip,
+                    'name' => $user->teacher->name,
+                    'subjects' => $user->teacher->subjects->map(function ($subject) {
+                        return [
+                            'id' => $subject->id,
+                            'nama' => $subject->nama,
+                        ];
+                    })->toArray(),
+                ] : null;
+            }
+        }
+        
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'username' => $user->username,
-                    'role' => $user->role ?? null,
-                    'photo' => $user->photo ?? null,
-                    'avatar' => $user->photo ?? null, // Keep avatar for backward compatibility
-                ] : null,
+                'user' => $userData,
             ],
         ];
     }

@@ -42,7 +42,10 @@ interface SelectedTool {
 }
 
 export default function Borrow() {
-    const { flash } = usePage().props as BorrowPageProps;
+    const { flash, auth } = usePage().props as BorrowPageProps & { auth: { user: { role?: string; teacher?: Teacher } } };
+    const currentUser = auth?.user;
+    const isGuru = currentUser?.role === 'guru';
+    
     const [step, setStep] = useState(1);
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
@@ -51,6 +54,14 @@ export default function Borrow() {
     const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [studentVerificationError, setStudentVerificationError] = useState('');
     const [qrScannerKey, setQrScannerKey] = useState(0);
+    
+    // Teacher verification state (for guru self-borrowing)
+    const [nip, setNip] = useState('');
+    const [verifiedTeacher, setVerifiedTeacher] = useState<Teacher | null>(null);
+    const [pendingTeacher, setPendingTeacher] = useState<Teacher | null>(null);
+    const [isConfirmTeacherOpen, setIsConfirmTeacherOpen] = useState(false);
+    const [isVerifyingTeacher, setIsVerifyingTeacher] = useState(false);
+    const [teacherVerificationError, setTeacherVerificationError] = useState('');
 
     const [unitCode, setUnitCode] = useState('');
     const [isVerifyingTool, setIsVerifyingTool] = useState(false);
@@ -61,7 +72,7 @@ export default function Borrow() {
     const [studentPhotoPreview, setStudentPhotoPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [scannerType, setScannerType] = useState<'student' | 'tool'>('student');
+    const [scannerType, setScannerType] = useState<'student' | 'teacher' | 'tool'>('student');
 
     // Tab and Catalog state
     const [activeTab, setActiveTab] = useState<'search' | 'qr'>('search');
@@ -147,44 +158,64 @@ export default function Borrow() {
         }
     };
 
-    const handleVerifyStudent = async (nisToVerify?: string) => {
-        const nisValue = nisToVerify || nis.trim();
-        if (!nisValue) {
-            setStudentVerificationError('Masukkan NIS terlebih dahulu');
+    const handleVerifyBorrower = async (codeToVerify?: string) => {
+        const codeValue = codeToVerify || (isGuru ? nip.trim() : nis.trim());
+        if (!codeValue) {
+            if (isGuru) {
+                setTeacherVerificationError('Masukkan NIP terlebih dahulu');
+            } else {
+                setStudentVerificationError('Masukkan NIS terlebih dahulu');
+            }
             return;
         }
 
-        setIsVerifyingStudent(true);
-        setStudentVerificationError('');
+        // Set loading state based on user type
+        if (isGuru) {
+            setIsVerifyingTeacher(true);
+            setTeacherVerificationError('');
+        } else {
+            setIsVerifyingStudent(true);
+            setStudentVerificationError('');
+        }
 
         try {
-            const response = await axios.post('/tool-loans/verify-student', { nis: nisValue });
+            const response = await axios.post('/tool-loans/verify-borrower', { code: codeValue });
             if (response.data.success) {
-                setPendingStudent(response.data.student);
-                setNis(nisValue);
-                setIsConfirmStudentOpen(true);
+                if (response.data.type === 'student') {
+                    setPendingStudent(response.data.student);
+                    setNis(codeValue);
+                    setIsConfirmStudentOpen(true);
+                } else if (response.data.type === 'teacher') {
+                    setPendingTeacher(response.data.teacher);
+                    setNip(codeValue);
+                    setIsConfirmTeacherOpen(true);
+                }
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
-            setStudentVerificationError(errorMessage);
-            setVerifiedStudent(null);
-            setPendingStudent(null);
+            const errorMessage = error.response?.data?.message || 'Peminjam tidak ditemukan';
+            if (isGuru) {
+                setTeacherVerificationError(errorMessage);
+                setVerifiedTeacher(null);
+                setPendingTeacher(null);
+            } else {
+                setStudentVerificationError(errorMessage);
+                setVerifiedStudent(null);
+                setPendingStudent(null);
+            }
         } finally {
-            setIsVerifyingStudent(false);
+            if (isGuru) {
+                setIsVerifyingTeacher(false);
+            } else {
+                setIsVerifyingStudent(false);
+            }
         }
     };
 
-    const handleVerifyTool = async (codeToVerify?: string) => {
+    const handleVerifyTool = async (codeToVerify?: string, skipToast = false) => {
         const codeValue = codeToVerify || unitCode.trim();
         if (!codeValue) {
             setToolVerificationError('Masukkan kode alat');
-            return;
-        }
-
-        // Check if already added
-        if (selectedTools.some((t) => t.toolUnit.unit_code === codeValue)) {
-            setToolVerificationError('Alat ini sudah ditambahkan');
-            return;
+            return false;
         }
 
         setIsVerifyingTool(true);
@@ -193,21 +224,51 @@ export default function Borrow() {
         try {
             const response = await axios.post('/tool-loans/verify-tool', { unit_code: codeValue });
             if (response.data.success) {
-                const newTool: SelectedTool = {
-                    toolUnit: response.data.tool_unit,
-                    photo: null,
-                    photoPreview: null,
-                };
-                setSelectedTools([...selectedTools, newTool]);
+                // Use functional update to ensure we have the latest state
+                setSelectedTools((prevTools) => {
+                    // Check if already added using current state
+                    if (prevTools.some((t) => t.toolUnit.unit_code === codeValue)) {
+                        setToolVerificationError('Alat ini sudah ditambahkan');
+                        return prevTools;
+                    }
+                    
+                    const newTool: SelectedTool = {
+                        toolUnit: response.data.tool_unit,
+                        photo: null,
+                        photoPreview: null,
+                    };
+                    return [...prevTools, newTool];
+                });
                 setUnitCode('');
-                toast.success('Alat ditambahkan');
+                if (!skipToast) {
+                    toast.success('Alat ditambahkan');
+                }
+                return true;
             }
+            return false;
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Alat tidak ditemukan';
             setToolVerificationError(errorMessage);
+            return false;
         } finally {
             setIsVerifyingTool(false);
         }
+    };
+
+    const handleConfirmTeacher = () => {
+        if (!pendingTeacher) return;
+        setVerifiedTeacher(pendingTeacher);
+        setPendingTeacher(null);
+        setIsConfirmTeacherOpen(false);
+        setStep(2);
+    };
+
+    const handleCancelTeacher = () => {
+        setPendingTeacher(null);
+        setIsConfirmTeacherOpen(false);
+        // Reset QRScanner by changing key to force re-render
+        setQrScannerKey(prev => prev + 1);
+        setTeacherVerificationError('');
     };
 
     const handleConfirmStudent = () => {
@@ -307,10 +368,12 @@ export default function Borrow() {
             return;
         }
 
+        setIsVerifyingTool(true);
         let successCount = 0;
         let errorCount = 0;
+        const toolsToAdd: SelectedTool[] = [];
 
-        // Add all selected units
+        // First, verify all units and collect valid tools
         for (const unitId of selectedUnitIds) {
             const unit = availableUnits.find(u => u.id.toString() === unitId);
             if (!unit) {
@@ -318,20 +381,43 @@ export default function Borrow() {
                 continue;
             }
 
-            // Check if already added
-            if (selectedTools.some((t) => t.toolUnit.id === unit.id)) {
-                errorCount++;
-                continue;
-            }
-
             try {
-                // Verify and add tool
-                await handleVerifyTool(unit.unit_code);
-                successCount++;
+                // Verify tool unit
+                const response = await axios.post('/tool-loans/verify-tool', { unit_code: unit.unit_code });
+                if (response.data.success) {
+                    // Check if already in selectedTools or in our new list
+                    const alreadyExists = selectedTools.some((t) => t.toolUnit.id === unit.id) ||
+                                         toolsToAdd.some((t) => t.toolUnit.id === unit.id);
+                    
+                    if (!alreadyExists) {
+                        toolsToAdd.push({
+                            toolUnit: response.data.tool_unit,
+                            photo: null,
+                            photoPreview: null,
+                        });
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } else {
+                    errorCount++;
+                }
             } catch (error) {
                 errorCount++;
             }
         }
+
+        // Add all verified tools at once
+        if (toolsToAdd.length > 0) {
+            setSelectedTools((prevTools) => {
+                // Filter out duplicates
+                const existingIds = new Set(prevTools.map(t => t.toolUnit.id));
+                const newTools = toolsToAdd.filter(t => !existingIds.has(t.toolUnit.id));
+                return [...prevTools, ...newTools];
+            });
+        }
+
+        setIsVerifyingTool(false);
 
         if (successCount > 0) {
             toast.success(`${successCount} unit berhasil ditambahkan`);
@@ -361,13 +447,21 @@ export default function Borrow() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!verifiedStudent || selectedTools.length === 0) {
-            toast.error('Pastikan siswa dan minimal 1 alat sudah dipilih');
+        
+        // Check if borrower is verified
+        // Must have either verifiedTeacher (for guru) or verifiedStudent (for student)
+        if (!verifiedTeacher && !verifiedStudent) {
+            toast.error('Verifikasi identitas peminjam terlebih dahulu dengan scan QR di step 1');
+            return;
+        }
+        
+        if (selectedTools.length === 0) {
+            toast.error('Minimal 1 alat harus dipilih');
             return;
         }
 
         if (!studentPhoto) {
-            toast.error('Foto wajah siswa wajib diambil');
+            toast.error('Foto wajib diambil');
             return;
         }
 
@@ -380,7 +474,14 @@ export default function Borrow() {
                 const tool = selectedTools[i];
                 try {
                     const formData = new FormData();
-                    formData.append('student_id', verifiedStudent.id.toString());
+                    
+                    // Determine borrower: teacher takes priority if both exist
+                    if (verifiedTeacher) {
+                        formData.append('borrower_teacher_id', verifiedTeacher.id.toString());
+                    } else if (verifiedStudent) {
+                        formData.append('student_id', verifiedStudent.id.toString());
+                    }
+                    
                     formData.append('tool_unit_id', tool.toolUnit.id.toString());
                     formData.append('borrow_photo', studentPhoto);
                     if (selectedTeacherId) {
@@ -426,8 +527,8 @@ export default function Borrow() {
     };
 
     const handleQRScanSuccess = (decodedText: string) => {
-        if (scannerType === 'student') {
-            handleVerifyStudent(decodedText);
+        if (scannerType === 'student' || scannerType === 'teacher') {
+            handleVerifyBorrower(decodedText);
         } else {
             handleVerifyTool(decodedText);
         }
@@ -484,30 +585,59 @@ export default function Borrow() {
                         </div>
                     </div>
 
-                    {/* Step 1: Verify Student */}
+                    {/* Step 1: Verify Student or Teacher */}
                     {step === 1 && (
                         <Card className="border-2">
                             <CardContent className="space-y-6 pt-6">
-                                <QRScanner
-                                    key={qrScannerKey}
-                                    open={true}
-                                    onClose={() => {}}
-                                    onScanSuccess={handleQRScanSuccess}
-                                    onScanError={(error) => toast.error(error)}
-                                    inline={true}
-                                />
-
-                                {studentVerificationError && (
-                                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
-                                        {studentVerificationError}
-                                    </div>
+                                {isGuru ? (
+                                    <>
+                                        <div className="text-center space-y-2">
+                                            <h3 className="text-lg font-semibold">Verifikasi Identitas Guru</h3>
+                                            <p className="text-sm text-muted-foreground">Scan QR code guru untuk verifikasi</p>
+                                        </div>
+                                        <QRScanner
+                                            key={qrScannerKey}
+                                            open={true}
+                                            onClose={() => {}}
+                                            onScanSuccess={(decodedText) => {
+                                                // Use unified handler
+                                                handleVerifyBorrower(decodedText);
+                                            }}
+                                            onScanError={(error) => toast.error(error)}
+                                            inline={true}
+                                        />
+                                        {teacherVerificationError && (
+                                            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
+                                                {teacherVerificationError}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <QRScanner
+                                            key={qrScannerKey}
+                                            open={true}
+                                            onClose={() => {}}
+                                            onScanSuccess={(decodedText) => {
+                                                // Use unified handler
+                                                handleVerifyBorrower(decodedText);
+                                            }}
+                                            onScanError={(error) => toast.error(error)}
+                                            inline={true}
+                                        />
+                                        {studentVerificationError && (
+                                            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
+                                                {studentVerificationError}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </CardContent>
                         </Card>
                     )}
 
                     {/* Step 2: Add Tools */}
-                    {step === 2 && verifiedStudent && (
+                    {step === 2 && (verifiedStudent || verifiedTeacher) && (
                         <Card className="border-2">
                             <CardHeader className="text-center pb-6">
                                 <CardTitle className="text-2xl mb-2">Tambah Alat</CardTitle>
@@ -516,13 +646,23 @@ export default function Borrow() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="p-4 bg-muted/50 rounded-lg border">
-                                    <div className="text-center space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
-                                        <p className="font-semibold">{verifiedStudent.name}</p>
-                                        <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                {verifiedStudent ? (
+                                    <div className="p-4 bg-muted/50 rounded-lg border">
+                                        <div className="text-center space-y-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
+                                            <p className="font-semibold">{verifiedStudent.name}</p>
+                                            <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : verifiedTeacher ? (
+                                    <div className="p-4 bg-muted/50 rounded-lg border">
+                                        <div className="text-center space-y-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Guru Terverifikasi</p>
+                                            <p className="font-semibold">{verifiedTeacher.name}</p>
+                                            <p className="text-xs text-muted-foreground">NIP: {verifiedTeacher.nip}</p>
+                                        </div>
+                                    </div>
+                                ) : null}
 
                                 {/* Catalog Button */}
                                 <div className="flex justify-center">
@@ -582,7 +722,7 @@ export default function Borrow() {
                                                 open={true}
                                                 onClose={() => {}}
                                                 onScanSuccess={(decodedText) => {
-                                                    setScannerType('tool');
+                                                    // Directly call handleVerifyTool for tool scanning
                                                     handleVerifyTool(decodedText);
                                                 }}
                                                 onScanError={(error) => toast.error(error)}
@@ -640,13 +780,15 @@ export default function Borrow() {
                                             setStep(1);
                                             setSelectedTools([]);
                                             setVerifiedStudent(null);
+                                            setVerifiedTeacher(null);
                                             // Reset QRScanner
                                             setQrScannerKey(prev => prev + 1);
                                             setStudentVerificationError('');
+                                            setTeacherVerificationError('');
                                         }}
                                         className="flex-1"
                                     >
-                                        Ganti Siswa
+                                        {isGuru ? 'Ganti Guru' : 'Ganti Siswa'}
                                     </Button>
                                     {selectedTools.length > 0 && (
                                         <Button onClick={() => setStep(3)} className="flex-1" size="lg">
@@ -659,26 +801,38 @@ export default function Borrow() {
                     )}
 
                     {/* Step 3: Submit */}
-                    {step === 3 && verifiedStudent && selectedTools.length > 0 && (
+                    {step === 3 && (verifiedStudent || verifiedTeacher) && selectedTools.length > 0 && (
                         <form onSubmit={handleSubmit}>
                             <Card className="border-2">
                                 <CardHeader className="text-center pb-6">
                                     <CardTitle className="text-2xl mb-2">Konfirmasi Peminjaman</CardTitle>
                                     <CardDescription className="text-base">
-                                        Ambil foto wajah siswa, pilih guru dan mapel, lalu konfirmasi data peminjaman
+                                        {isGuru && verifiedTeacher 
+                                            ? 'Ambil foto, pilih guru dan mapel, lalu konfirmasi data peminjaman'
+                                            : 'Ambil foto wajah siswa, pilih guru dan mapel, lalu konfirmasi data peminjaman'}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    <div className="p-4 bg-muted/50 rounded-lg border">
-                                        <div className="text-center space-y-1">
-                                            <p className="text-sm font-medium text-muted-foreground">Siswa</p>
-                                            <p className="font-semibold text-lg">{verifiedStudent.name}</p>
-                                            <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                    {verifiedStudent ? (
+                                        <div className="p-4 bg-muted/50 rounded-lg border">
+                                            <div className="text-center space-y-1">
+                                                <p className="text-sm font-medium text-muted-foreground">Siswa</p>
+                                                <p className="font-semibold text-lg">{verifiedStudent.name}</p>
+                                                <p className="text-sm text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : verifiedTeacher ? (
+                                        <div className="p-4 bg-muted/50 rounded-lg border">
+                                            <div className="text-center space-y-1">
+                                                <p className="text-sm font-medium text-muted-foreground">Guru</p>
+                                                <p className="font-semibold text-lg">{verifiedTeacher.name}</p>
+                                                <p className="text-sm text-muted-foreground">NIP: {verifiedTeacher.nip}</p>
+                                            </div>
+                                        </div>
+                                    ) : null}
 
                                     <div className="space-y-3">
-                                        <Label className="text-base font-semibold">Foto Wajah Siswa *</Label>
+                                        <Label className="text-base font-semibold">{isGuru && verifiedTeacher ? 'Foto *' : 'Foto Wajah Siswa *'}</Label>
                                         {studentPhotoPreview ? (
                                             <div className="flex flex-col items-center space-y-4">
                                                 <div className="relative w-full max-w-xs flex items-center justify-center bg-muted rounded-lg border-2 shadow-lg p-4">
@@ -704,8 +858,8 @@ export default function Borrow() {
                                                 open={true}
                                                 onClose={() => {}}
                                                 onCapture={handleStudentPhotoCapture}
-                                                title="Ambil Foto Wajah Siswa"
-                                                description="Posisikan wajah siswa dalam frame kamera"
+                                                title={isGuru && verifiedTeacher ? "Ambil Foto" : "Ambil Foto Wajah Siswa"}
+                                                description={isGuru && verifiedTeacher ? "Ambil foto untuk dokumentasi peminjaman" : "Posisikan wajah siswa dalam frame kamera"}
                                                 inline={true}
                                             />
                                         )}
@@ -795,6 +949,43 @@ export default function Borrow() {
                     )}
                 </div>
             </div>
+
+        <Dialog
+            open={isConfirmTeacherOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    handleCancelTeacher();
+                }
+            }}
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Konfirmasi Guru</DialogTitle>
+                    <DialogDescription>Pastikan data guru sudah benar sebelum melanjutkan.</DialogDescription>
+                </DialogHeader>
+                {pendingTeacher && (
+                    <div className="space-y-2">
+                        <p className="text-lg font-semibold text-center">{pendingTeacher.name}</p>
+                        <p className="text-center text-muted-foreground">NIP: {pendingTeacher.nip}</p>
+                        {pendingTeacher.subjects && pendingTeacher.subjects.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                                {pendingTeacher.subjects.map((subject) => (
+                                    <span key={subject.id} className="text-xs bg-muted px-2 py-1 rounded">
+                                        {subject.nama}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={handleCancelTeacher}>
+                        Batal
+                    </Button>
+                    <Button onClick={handleConfirmTeacher}>Konfirmasi</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <Dialog
             open={isConfirmStudentOpen}

@@ -39,7 +39,7 @@
         --sidebar-accent-foreground: 240 5.9% 10%;
         --sidebar-border: 220 13% 90%;
         --sidebar-ring: 217.2 91.2% 59.8%;
-        font-size: 20px;
+        font-size: 19px;
 
         @media (max-width: 640px) {
             :root {

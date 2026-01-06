@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, X, Eye, Download, FileSpreadsheet } from 'lucide-react';
+import { Search, X, Eye, Download, FileSpreadsheet, Info } from 'lucide-react';
 import { PageProps, ToolLoan } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -66,6 +66,8 @@ export default function History({ loans, filters }: HistoryPageProps) {
     const [selectedLoan, setSelectedLoan] = useState<ToolLoan | null>(null);
     const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
     const [photoType, setPhotoType] = useState<'borrow' | 'return'>('borrow');
+    const [teacherSubjectDialogOpen, setTeacherSubjectDialogOpen] = useState(false);
+    const [selectedLoanForTeacherSubject, setSelectedLoanForTeacherSubject] = useState<ToolLoan | null>(null);
 
     // Ensure loans has default structure
     const loansData = loans || {
@@ -115,7 +117,7 @@ export default function History({ loans, filters }: HistoryPageProps) {
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
         params.append('format', format);
-        
+
         window.location.href = `/history/export?${params.toString()}`;
     };
 
@@ -149,6 +151,11 @@ export default function History({ loans, filters }: HistoryPageProps) {
         setSelectedLoan(loan);
         setPhotoType(type);
         setPhotoDialogOpen(true);
+    };
+
+    const openTeacherSubjectDialog = (loan: ToolLoan) => {
+        setSelectedLoanForTeacherSubject(loan);
+        setTeacherSubjectDialogOpen(true);
     };
 
     return (
@@ -202,7 +209,7 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                     <div className="flex gap-2">
                                         <Input
                                             id="search"
-                                            placeholder="Cari berdasarkan NIS, nama siswa, atau kode alat"
+                                            placeholder="Cari berdasarkan NIS/NIP, nama peminjam, atau kode alat"
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             className="flex-1"
@@ -280,7 +287,8 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="px-4 py-3">Tanggal Pinjam</TableHead>
-                                                <TableHead className="px-4 py-3">Siswa</TableHead>
+                                                <TableHead className="px-4 py-3">Peminjam</TableHead>
+                                                <TableHead className="px-4 py-3">Guru & Mapel</TableHead>
                                                 <TableHead className="px-4 py-3">Alat</TableHead>
                                                 <TableHead className="px-4 py-3">Status</TableHead>
                                                 <TableHead className="px-4 py-3">Tanggal Kembali</TableHead>
@@ -299,13 +307,43 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         <div className="space-y-1">
-                                                            <div className="font-medium">
-                                                                {loan.student?.name || '-'}
-                                                            </div>
-                                                            <div className="text-sm text-muted-foreground">
-                                                                NIS: {loan.student?.nis || '-'}
-                                                            </div>
+                                                            {loan.student ? (
+                                                                <>
+                                                                    <div className="font-medium">
+                                                                        {loan.student.name}
+                                                                    </div>
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        NIS: {loan.student.nis}
+                                                                    </div>
+                                                                </>
+                                                            ) : loan.borrower_teacher ? (
+                                                                <>
+                                                                    <div className="font-medium">
+                                                                        {loan.borrower_teacher?.name || '-'}
+                                                                    </div>
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        NIP: {loan.borrower_teacher?.nip || '-'}
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                '-'
+                                                            )}
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        {loan.teacher || loan.subject ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => openTeacherSubjectDialog(loan)}
+                                                                className="flex items-center gap-2"
+                                                            >
+                                                                <Info className="h-4 w-4" />
+                                                                Lihat Detail
+                                                            </Button>
+                                                        ) : (
+                                                            '-'
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         <div className="space-y-1">
@@ -332,14 +370,14 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                         {getConditionBadge(loan.return_condition)}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3">
-                                                        <div className="flex gap-2">
+                                                        <div className="flex-row gap-2 space-y-2">
                                                             {loan.borrow_photo && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
                                                                     onClick={() => openPhotoDialog(loan, 'borrow')}
                                                                 >
-                                                                    <Eye className="h-4 w-4 mr-1" />
+                                                                    <Eye className="h-4 w-4" />
                                                                     Foto Pinjam
                                                                 </Button>
                                                             )}
@@ -349,7 +387,7 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                                     size="sm"
                                                                     onClick={() => openPhotoDialog(loan, 'return')}
                                                                 >
-                                                                    <Eye className="h-4 w-4 mr-1" />
+                                                                    <Eye className="h-4 w-4" />
                                                                     Foto Kembali
                                                                 </Button>
                                                             )}
@@ -400,6 +438,62 @@ export default function History({ loans, filters }: HistoryPageProps) {
                     </CardContent>
                 </Card>
 
+                {/* Teacher & Subject Dialog */}
+                <Dialog open={teacherSubjectDialogOpen} onOpenChange={setTeacherSubjectDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Informasi Guru & Mapel</DialogTitle>
+                            <DialogDescription>
+                                Detail guru pengampu dan mata pelajaran
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selectedLoanForTeacherSubject && (
+                            <div className="space-y-4">
+                                {selectedLoanForTeacherSubject.teacher ? (
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-semibold">Guru Pengampu</div>
+                                        <div className="p-3 bg-muted/50 rounded-lg border">
+                                            <div className="space-y-1">
+                                                <div className="font-medium">
+                                                    {selectedLoanForTeacherSubject.teacher.name}
+                                                </div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    NIP: {selectedLoanForTeacherSubject.teacher.nip}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-semibold">Guru Pengampu</div>
+                                        <div className="p-3 bg-muted/50 rounded-lg border text-muted-foreground">
+                                            Tidak ada data guru
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedLoanForTeacherSubject.subject ? (
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-semibold">Mata Pelajaran</div>
+                                        <div className="p-3 bg-muted/50 rounded-lg border">
+                                            <div className="font-medium">
+                                                {selectedLoanForTeacherSubject.subject.nama}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-semibold">Mata Pelajaran</div>
+                                        <div className="p-3 bg-muted/50 rounded-lg border text-muted-foreground">
+                                            Tidak ada data mata pelajaran
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+
                 {/* Photo Dialog */}
                 <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
                     <DialogContent className="sm:max-w-2xl">
@@ -438,4 +532,3 @@ export default function History({ loans, filters }: HistoryPageProps) {
         </DashboardLayout>
     );
 }
-

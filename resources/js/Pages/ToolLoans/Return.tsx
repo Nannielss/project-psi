@@ -107,10 +107,12 @@ export default function Return() {
         setStudentVerificationError('');
 
         try {
-            const response = await axios.post('/tool-loans/verify-student', { nis: nisValue });
-            if (response.data.success) {
+            const response = await axios.post('/tool-loans/verify-borrower', { code: nisValue });
+            if (response.data.success && response.data.type === 'student') {
                 setVerifiedStudent(response.data.student);
                 setNis(nisValue);
+            } else {
+                setStudentVerificationError('Data yang ditemukan bukan siswa');
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';

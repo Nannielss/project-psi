@@ -38,7 +38,7 @@ Route::get('tool-loans/search-tools', [ToolLoanController::class, 'searchTools']
 Route::get('tool-loans/tools-catalog', [ToolLoanController::class, 'getToolsCatalog'])->name('tool-loans.tools-catalog');
 Route::get('tool-loans/tools/{toolId}/available-units', [ToolLoanController::class, 'getAvailableUnits'])->name('tool-loans.available-units');
 Route::get('tool-loans/active-loans/{studentId}', [ToolLoanController::class, 'getActiveLoansByStudent'])->name('tool-loans.active-loans');
-Route::post('tool-loans/verify-student', [ToolLoanController::class, 'verifyStudent'])->name('tool-loans.verify-student');
+Route::post('tool-loans/verify-borrower', [ToolLoanController::class, 'verifyBorrower'])->name('tool-loans.verify-borrower');
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
 Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');
 Route::post('tool-loans/borrow', [ToolLoanController::class, 'storeBorrow'])->name('tool-loans.store-borrow');
@@ -85,7 +85,6 @@ Route::middleware('auth')->group(function () {
         Route::get('material-pickups', [MaterialPickupController::class, 'index'])->name('material-pickups.index');
         Route::get('material-pickups/create', [MaterialPickupController::class, 'create'])->name('material-pickups.create');
         Route::post('material-pickups', [MaterialPickupController::class, 'store'])->name('material-pickups.store');
-        Route::post('material-pickups/verify-qr', [MaterialPickupController::class, 'verifyQR'])->name('material-pickups.verify-qr');
         
         // Materials CRUD within material-pickups page - non-guru only
         Route::middleware('role:admin,kajur,wakajur')->group(function () {

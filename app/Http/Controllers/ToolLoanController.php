@@ -45,27 +45,45 @@ class ToolLoanController extends Controller
     }
 
     /**
-     * Verify student by NIS.
+     * Verify borrower by NIS (student) or NIP (teacher) - unified endpoint.
      */
-    public function verifyStudent(Request $request)
+    public function verifyBorrower(Request $request)
     {
         $request->validate([
-            'nis' => 'required|string',
+            'code' => 'required|string',
         ]);
 
-        $student = Student::where('nis', $request->nis)->with('major')->first();
+        $code = $request->code;
 
-        if (!$student) {
+        // Try to find student first by NIS
+        $student = Student::where('nis', $code)->with('major')->first();
+
+        if ($student) {
             return response()->json([
-                'success' => false,
-                'message' => 'Siswa dengan NIS tersebut tidak ditemukan.',
-            ], 404);
+                'success' => true,
+                'type' => 'student',
+                'student' => $student,
+                'teacher' => null,
+            ]);
         }
 
+        // If not found as student, try to find teacher by NIP
+        $teacher = Teacher::where('nip', $code)->with('subjects')->first();
+
+        if ($teacher) {
+            return response()->json([
+                'success' => true,
+                'type' => 'teacher',
+                'student' => null,
+                'teacher' => $teacher,
+            ]);
+        }
+
+        // Not found in both tables
         return response()->json([
-            'success' => true,
-            'student' => $student,
-        ]);
+            'success' => false,
+            'message' => 'Siswa dengan NIS atau guru dengan NIP tersebut tidak ditemukan.',
+        ], 404);
     }
 
     /**
@@ -246,13 +264,21 @@ class ToolLoanController extends Controller
     public function storeBorrow(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
+            'student_id' => 'nullable|exists:students,id',
+            'borrower_teacher_id' => 'nullable|exists:teachers,id',
             'tool_unit_id' => 'required|exists:tool_units,id',
             'borrow_photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
             'teacher_id' => 'nullable|exists:teachers,id',
             'subject_id' => 'nullable|exists:subjects,id',
             'notes' => 'nullable|string',
         ]);
+
+        // Validate that either student_id or borrower_teacher_id is provided
+        if (empty($validated['student_id']) && empty($validated['borrower_teacher_id'])) {
+            return redirect()->back()
+                ->withErrors(['student_id' => 'Siswa atau guru peminjam harus dipilih.'])
+                ->withInput();
+        }
 
         // Verify tool unit is available
         $toolUnit = ToolUnit::findOrFail($validated['tool_unit_id']);
@@ -279,13 +305,20 @@ class ToolLoanController extends Controller
 
         // Create loan record
         $loanData = [
-            'student_id' => $validated['student_id'],
             'tool_unit_id' => $validated['tool_unit_id'],
             'borrow_photo' => $photoPath,
             'borrowed_at' => now(),
             'status' => 'borrowed',
             'notes' => $validated['notes'] ?? null,
         ];
+
+        // Add student_id or borrower_teacher_id
+        if (!empty($validated['student_id'])) {
+            $loanData['student_id'] = $validated['student_id'];
+        }
+        if (!empty($validated['borrower_teacher_id'])) {
+            $loanData['borrower_teacher_id'] = $validated['borrower_teacher_id'];
+        }
 
         // Only add teacher_id and subject_id if they have values
         if (!empty($validated['teacher_id'])) {
@@ -485,16 +518,25 @@ class ToolLoanController extends Controller
 
         // ===== RECENT ACTIVITIES =====
         // Recent loans (5 latest)
-        $recentLoans = ToolLoan::with(['student.major', 'toolUnit.tool'])
+        $recentLoans = ToolLoan::with(['student.major', 'borrowerTeacher', 'toolUnit.tool'])
             ->orderBy('borrowed_at', 'desc')
             ->limit(5)
             ->get()
             ->map(function ($loan) {
+                $borrowerName = $loan->student ? $loan->student->name : ($loan->borrowerTeacher ? $loan->borrowerTeacher->name : '-');
+                $borrowerId = $loan->student ? $loan->student->nis : ($loan->borrowerTeacher ? $loan->borrowerTeacher->nip : '-');
+                $borrowerType = $loan->student ? 'student' : 'teacher';
+                
                 return [
                     'id' => $loan->id,
-                    'student_name' => $loan->student->name,
-                    'student_nis' => $loan->student->nis,
+                    'borrower_name' => $borrowerName,
+                    'borrower_id' => $borrowerId,
+                    'borrower_type' => $borrowerType,
+                    'student_name' => $loan->student->name ?? null,
+                    'student_nis' => $loan->student->nis ?? null,
                     'major_name' => $loan->student->major->name ?? '-',
+                    'teacher_name' => $loan->borrowerTeacher->name ?? null,
+                    'teacher_nip' => $loan->borrowerTeacher->nip ?? null,
                     'tool_name' => $loan->toolUnit->tool->name,
                     'unit_code' => $loan->toolUnit->unit_code,
                     'status' => $loan->status,
@@ -507,7 +549,7 @@ class ToolLoanController extends Controller
 
         // ===== ALERTS =====
         // Overdue loans (borrowed more than 8 hours ago)
-        $overdueLoans = ToolLoan::with(['student.major', 'toolUnit.tool'])
+        $overdueLoans = ToolLoan::with(['student.major', 'borrowerTeacher', 'toolUnit.tool'])
             ->where('status', 'borrowed')
             ->where('borrowed_at', '<', now()->subHours(8))
             ->orderBy('borrowed_at', 'asc')
@@ -515,10 +557,19 @@ class ToolLoanController extends Controller
             ->get()
             ->map(function ($loan) {
                 $hoursAgo = now()->diffInHours($loan->borrowed_at);
+                $borrowerName = $loan->student ? $loan->student->name : ($loan->borrowerTeacher ? $loan->borrowerTeacher->name : '-');
+                $borrowerId = $loan->student ? $loan->student->nis : ($loan->borrowerTeacher ? $loan->borrowerTeacher->nip : '-');
+                $borrowerType = $loan->student ? 'student' : 'teacher';
+                
                 return [
                     'id' => $loan->id,
-                    'student_name' => $loan->student->name,
-                    'student_nis' => $loan->student->nis,
+                    'borrower_name' => $borrowerName,
+                    'borrower_id' => $borrowerId,
+                    'borrower_type' => $borrowerType,
+                    'student_name' => $loan->student->name ?? null,
+                    'student_nis' => $loan->student->nis ?? null,
+                    'teacher_name' => $loan->borrowerTeacher->name ?? null,
+                    'teacher_nip' => $loan->borrowerTeacher->nip ?? null,
                     'tool_name' => $loan->toolUnit->tool->name,
                     'unit_code' => $loan->toolUnit->unit_code,
                     'borrowed_at' => $loan->borrowed_at->format('d M Y H:i'),
@@ -584,7 +635,7 @@ class ToolLoanController extends Controller
      */
     public function history(Request $request): Response
     {
-        $query = ToolLoan::with(['student.major', 'toolUnit.tool']);
+        $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'teacher', 'subject', 'toolUnit.tool']);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -592,6 +643,10 @@ class ToolLoanController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('student', function ($q) use ($search) {
                     $q->where('nis', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('borrowerTeacher', function ($q) use ($search) {
+                    $q->where('nip', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%");
                 })
                 ->orWhereHas('toolUnit', function ($q) use ($search) {
@@ -632,7 +687,7 @@ class ToolLoanController extends Controller
     {
         $format = $request->get('format', 'excel'); // 'csv' or 'excel'
         
-        $query = ToolLoan::with(['student.major', 'toolUnit.tool']);
+        $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'toolUnit.tool']);
 
         // Apply same filters as history page
         if ($request->has('search') && $request->search) {
@@ -640,6 +695,10 @@ class ToolLoanController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('student', function ($q) use ($search) {
                     $q->where('nis', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('borrowerTeacher', function ($q) use ($search) {
+                    $q->where('nip', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%");
                 })
                 ->orWhereHas('toolUnit', function ($q) use ($search) {
@@ -671,8 +730,9 @@ class ToolLoanController extends Controller
         // Set headers
         $headers = [
             'Tanggal Pinjam',
-            'NIS',
-            'Nama Siswa',
+            'Tipe Peminjam',
+            'NIS/NIP',
+            'Nama Peminjam',
             'Jurusan',
             'Kelas',
             'Kode Unit',
@@ -686,35 +746,42 @@ class ToolLoanController extends Controller
         $sheet->fromArray([$headers], null, 'A1');
 
         // Set header style
-        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
 
         // Add data rows
         $row = 2;
         foreach ($loans as $loan) {
+            $borrowerType = $loan->student ? 'Siswa' : 'Guru';
+            $borrowerId = $loan->student ? ($loan->student->nis ?? '') : ($loan->borrowerTeacher ? ($loan->borrowerTeacher->nip ?? '') : '');
+            $borrowerName = $loan->student ? ($loan->student->name ?? '') : ($loan->borrowerTeacher ? ($loan->borrowerTeacher->name ?? '') : '');
+            $majorName = $loan->student && $loan->student->major ? $loan->student->major->name : '';
+            $class = $loan->student ? ($loan->student->class ?? '') : '';
+            
             $sheet->setCellValue('A' . $row, $loan->borrowed_at->format('Y-m-d H:i:s'));
-            $sheet->setCellValue('B' . $row, $loan->student->nis ?? '');
-            $sheet->setCellValue('C' . $row, $loan->student->name ?? '');
-            $sheet->setCellValue('D' . $row, $loan->student->major->name ?? '');
-            $sheet->setCellValue('E' . $row, $loan->student->class ?? '');
-            $sheet->setCellValue('F' . $row, $loan->toolUnit->unit_code ?? '');
-            $sheet->setCellValue('G' . $row, $loan->toolUnit->tool->name ?? '');
-            $sheet->setCellValue('H' . $row, $loan->toolUnit->tool->location ?? '');
-            $sheet->setCellValue('I' . $row, $loan->status === 'borrowed' ? 'Dipinjam' : 'Dikembalikan');
-            $sheet->setCellValue('J' . $row, $loan->returned_at ? $loan->returned_at->format('Y-m-d H:i:s') : '');
+            $sheet->setCellValue('B' . $row, $borrowerType);
+            $sheet->setCellValue('C' . $row, $borrowerId);
+            $sheet->setCellValue('D' . $row, $borrowerName);
+            $sheet->setCellValue('E' . $row, $majorName);
+            $sheet->setCellValue('F' . $row, $class);
+            $sheet->setCellValue('G' . $row, $loan->toolUnit->unit_code ?? '');
+            $sheet->setCellValue('H' . $row, $loan->toolUnit->tool->name ?? '');
+            $sheet->setCellValue('I' . $row, $loan->toolUnit->tool->location ?? '');
+            $sheet->setCellValue('J' . $row, $loan->status === 'borrowed' ? 'Dipinjam' : 'Dikembalikan');
+            $sheet->setCellValue('K' . $row, $loan->returned_at ? $loan->returned_at->format('Y-m-d H:i:s') : '');
             
             $conditionLabels = [
                 'good' => 'Baik',
                 'damaged' => 'Rusak',
                 'service' => 'Perlu Service',
             ];
-            $sheet->setCellValue('K' . $row, $loan->return_condition ? ($conditionLabels[$loan->return_condition] ?? $loan->return_condition) : '');
-            $sheet->setCellValue('L' . $row, $loan->notes ?? '');
+            $sheet->setCellValue('L' . $row, $loan->return_condition ? ($conditionLabels[$loan->return_condition] ?? $loan->return_condition) : '');
+            $sheet->setCellValue('M' . $row, $loan->notes ?? '');
             
             $row++;
         }
 
         // Auto-size columns
-        foreach (range('A', 'L') as $col) {
+        foreach (range('A', 'M') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -751,7 +818,7 @@ class ToolLoanController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = ToolLoan::with(['student.major', 'toolUnit.tool']);
+        $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'toolUnit.tool']);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -759,6 +826,10 @@ class ToolLoanController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('student', function ($q) use ($search) {
                     $q->where('nis', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('borrowerTeacher', function ($q) use ($search) {
+                    $q->where('nip', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%");
                 })
                 ->orWhereHas('toolUnit', function ($q) use ($search) {

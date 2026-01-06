@@ -103,7 +103,8 @@ export interface Tool {
 
 export interface ToolLoan {
     id: number;
-    student_id: number;
+    student_id?: number;
+    borrower_teacher_id?: number;
     tool_unit_id: number;
     teacher_id?: number;
     subject_id?: number;
@@ -117,6 +118,7 @@ export interface ToolLoan {
     created_at: string;
     updated_at: string;
     student?: Student;
+    borrower_teacher?: Teacher;
     tool_unit?: ToolUnit;
     teacher?: Teacher;
     subject?: Subject;
