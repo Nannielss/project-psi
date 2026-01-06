@@ -11,7 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { X, Camera, Trash2, CheckCircle2, ArrowRight, Package, Search, QrCode } from 'lucide-react';
+import { Trash2, CheckCircle2, ArrowRight, Package, Search, QrCode } from 'lucide-react';
 import { Student, ToolUnit, Teacher, Subject } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';

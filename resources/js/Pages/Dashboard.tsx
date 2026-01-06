@@ -1,7 +1,6 @@
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     Table,
@@ -16,12 +15,8 @@ import {
     PackageCheck,
     Clock,
     History,
-    Wrench,
     AlertTriangle,
     TrendingUp,
-    Box,
-    ShoppingCart,
-    ArrowRight,
     CheckCircle2,
 } from 'lucide-react';
 

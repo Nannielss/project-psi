@@ -33,7 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, QrCode, Printer, Package, Upload, Download, ScanLine } from 'lucide-react';
-import { PageProps, Tool, ToolUnit, Major } from '@/types';
+import { PageProps, Tool, ToolUnit } from '@/types';
 import { toast } from 'sonner';
 import { QRPrintDialog } from '@/components/features/qr/QRPrintDialog';
 
@@ -54,14 +54,13 @@ interface ToolsPageProps extends PageProps {
         search?: string;
         condition?: string;
     };
-    majors: Major[];
     flash?: {
         success?: string;
         error?: string;
     };
 }
 
-export default function Index({ tools, filters, majors }: ToolsPageProps) {
+export default function Index({ tools, filters }: ToolsPageProps) {
     const { flash, auth } = usePage<ToolsPageProps>().props;
     const currentUser = auth?.user;
     const [search, setSearch] = useState(filters.search || '');
