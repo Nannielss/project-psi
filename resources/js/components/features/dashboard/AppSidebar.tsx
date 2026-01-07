@@ -110,8 +110,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     ]
 
-    // Add Manajemen User only for kajur role
-    const navItems = userRole === "kajur"
+    // Add Manajemen User for admin, kajur, and wakajur roles
+    const canManageUsers = ["admin", "kajur", "wakajur"].includes(userRole)
+    const navItems = canManageUsers
         ? [
             ...baseNavItems,
             {
