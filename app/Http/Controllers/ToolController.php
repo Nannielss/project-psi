@@ -6,6 +6,7 @@ use App\Models\Tool;
 use App\Models\ToolUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -95,42 +96,59 @@ class ToolController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'code' => 'required|string|max:255|unique:tools,code',
-            'name' => 'required|string|max:255',
-            'location' => 'required|string|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'nullable|string',
-        ]);
-
-        // Handle photo upload
-        if ($request->hasFile('photo')) {
-            $validated['photo'] = $request->file('photo')->store('tools', 'public');
-        }
-
-        $tool = Tool::create([
-            'code' => $validated['code'],
-            'name' => $validated['name'],
-            'location' => $validated['location'],
-            'photo' => $validated['photo'] ?? null,
-            'description' => $validated['description'] ?? null,
-        ]);
-
-        // Extract initial unit count from code (5th segment)
-        $initialCount = $this->extractUnitCountFromCode($tool->code);
-        
-        // Create initial units
-        for ($i = 1; $i <= $initialCount; $i++) {
-            ToolUnit::create([
-                'tool_id' => $tool->id,
-                'unit_number' => $i,
-                'unit_code' => $tool->code . '.' . str_pad($i, 2, '0', STR_PAD_LEFT),
-                'condition' => 'good',
+        try {
+            $validated = $request->validate([
+                'code' => 'required|string|max:255|unique:tools,code',
+                'name' => 'required|string|max:255',
+                'location' => 'required|string|max:255',
+                'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'description' => 'nullable|string',
             ]);
-        }
 
-        return redirect()->route('tools.index')
-            ->with('success', 'Alat berhasil ditambahkan.');
+            // Handle photo upload
+            if ($request->hasFile('photo')) {
+                // Ensure directory exists
+                $directory = storage_path('app/public/tools');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                
+                $validated['photo'] = $request->file('photo')->store('tools', 'public');
+            }
+
+            $tool = Tool::create([
+                'code' => $validated['code'],
+                'name' => $validated['name'],
+                'location' => $validated['location'],
+                'photo' => $validated['photo'] ?? null,
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            // Extract initial unit count from code (5th segment)
+            $initialCount = $this->extractUnitCountFromCode($tool->code);
+            
+            // Create initial units
+            for ($i = 1; $i <= $initialCount; $i++) {
+                ToolUnit::create([
+                    'tool_id' => $tool->id,
+                    'unit_number' => $i,
+                    'unit_code' => $tool->code . '.' . str_pad($i, 2, '0', STR_PAD_LEFT),
+                    'condition' => 'good',
+                ]);
+            }
+
+            return redirect()->route('tools.index')
+                ->with('success', 'Alat berhasil ditambahkan.');
+        } catch (\Exception $e) {
+            Log::error('Error storing tool: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Terjadi kesalahan saat menyimpan alat: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -138,40 +156,58 @@ class ToolController extends Controller
      */
     public function update(Request $request, Tool $tool)
     {
-        $validated = $request->validate([
-            'code' => 'required|string|max:255|unique:tools,code,' . $tool->id,
-            'name' => 'required|string|max:255',
-            'location' => 'required|string|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'code' => 'required|string|max:255|unique:tools,code,' . $tool->id,
+                'name' => 'required|string|max:255',
+                'location' => 'required|string|max:255',
+                'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'description' => 'nullable|string',
+            ]);
 
-        // Handle photo upload
-        if ($request->hasFile('photo')) {
-            // Delete old photo if exists
-            if ($tool->photo && Storage::disk('public')->exists($tool->photo)) {
-                Storage::disk('public')->delete($tool->photo);
+            // Handle photo upload
+            if ($request->hasFile('photo')) {
+                // Ensure directory exists
+                $directory = storage_path('app/public/tools');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                
+                // Delete old photo if exists
+                if ($tool->photo && Storage::disk('public')->exists($tool->photo)) {
+                    Storage::disk('public')->delete($tool->photo);
+                }
+                $validated['photo'] = $request->file('photo')->store('tools', 'public');
+            } else {
+                // Keep existing photo if not uploading new one
+                unset($validated['photo']);
             }
-            $validated['photo'] = $request->file('photo')->store('tools', 'public');
-        } else {
-            // Keep existing photo if not uploading new one
-            unset($validated['photo']);
-        }
 
-        $oldCode = $tool->code;
-        $tool->update($validated);
+            $oldCode = $tool->code;
+            $tool->update($validated);
 
-        // Update unit codes if code changed
-        if ($oldCode !== $tool->code) {
-            foreach ($tool->units as $unit) {
-                $unit->update([
-                    'unit_code' => $tool->code . '.' . str_pad($unit->unit_number, 2, '0', STR_PAD_LEFT),
-                ]);
+            // Update unit codes if code changed
+            if ($oldCode !== $tool->code) {
+                foreach ($tool->units as $unit) {
+                    $unit->update([
+                        'unit_code' => $tool->code . '.' . str_pad($unit->unit_number, 2, '0', STR_PAD_LEFT),
+                    ]);
+                }
             }
-        }
 
-        return redirect()->route('tools.index')
-            ->with('success', 'Alat berhasil diperbarui.');
+            return redirect()->route('tools.index')
+                ->with('success', 'Alat berhasil diperbarui.');
+        } catch (\Exception $e) {
+            Log::error('Error updating tool: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'tool_id' => $tool->id,
+                'request' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Terjadi kesalahan saat memperbarui alat: ' . $e->getMessage()]);
+        }
     }
 
     /**
