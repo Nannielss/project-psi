@@ -267,7 +267,7 @@ export default function Welcome({
                                         </h2>
 
                                         <p className="mt-4 text-sm/relaxed">
-                                            Laravel's robust library of
+                                            Laravel&apos;s robust library of
                                             first-party tools and libraries,
                                             such as{' '}
                                             <a

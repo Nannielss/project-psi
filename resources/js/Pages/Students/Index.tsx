@@ -111,7 +111,7 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
     const handleFilterChange = (newMajorFilter?: string, newClassFilter?: string) => {
         const majorValue = newMajorFilter !== undefined ? newMajorFilter : majorFilter;
         const classValue = newClassFilter !== undefined ? newClassFilter : classFilter;
-        
+
         router.get('/students', {
             search: search || undefined,
             major_id: majorValue && majorValue !== 'all' ? majorValue : undefined,
@@ -208,25 +208,25 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
         setSelectedStudentForQR(null);
         setQrPrintMode('filtered');
         setIsLoadingQR(true);
-        
+
         try {
             // Build query params with current filters
             const params: Record<string, string> = {};
             if (search) params.search = search;
             if (majorFilter) params.major_id = majorFilter;
             if (classFilter) params.class = classFilter;
-            
+
             const response = await window.axios.get('/students/for-qr', { params });
-            
+
             if (response.data && response.data.data) {
                 setQrData(response.data.data);
                 setIsQRPrintOpen(true);
             } else {
                 toast.error('Format data tidak valid');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching QR data:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Gagal mengambil data untuk QR';
+            const errorMessage = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (error as { message?: string })?.message || 'Gagal mengambil data untuk QR';
             toast.error(errorMessage);
         } finally {
             setIsLoadingQR(false);
@@ -290,7 +290,7 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
                                 <DialogHeader>
                                     <DialogTitle>Import Siswa dari Excel</DialogTitle>
                                     <DialogDescription>
-                                        Upload file Excel dengan format: nis, name, Class. Kode jurusan akan diekstrak otomatis dari kolom Class (contoh: "X TE 1" → kode jurusan "TE").
+                                        Upload file Excel dengan format: nis, name, Class. Kode jurusan akan diekstrak otomatis dari kolom Class (contoh: &quot;X TE 1&quot; → kode jurusan &quot;TE&quot;).
                                     </DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleImport}>
@@ -615,11 +615,10 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
                                                     <Link
                                                         key={index}
                                                         href={link.url}
-                                                        className={`px-3 py-2 text-sm rounded-md border ${
-                                                            link.active
+                                                        className={`px-3 py-2 text-sm rounded-md border ${link.active
                                                                 ? 'bg-primary text-primary-foreground'
                                                                 : 'hover:bg-accent'
-                                                        }`}
+                                                            }`}
                                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                                     />
                                                 );
@@ -742,8 +741,8 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
                     open={isQRPrintOpen}
                     onOpenChange={setIsQRPrintOpen}
                     items={getQRItems()}
-                    title={qrPrintMode === 'single' 
-                        ? `Cetak QR - ${selectedStudentForQR?.name || ''}` 
+                    title={qrPrintMode === 'single'
+                        ? `Cetak QR - ${selectedStudentForQR?.name || ''}`
                         : 'Cetak QR Siswa'}
                     description={qrPrintMode === 'single'
                         ? `QR Code untuk NIS: ${selectedStudentForQR?.nis || ''}`
@@ -754,4 +753,3 @@ export default function Index({ students, majors, classes, filters }: StudentsPa
         </DashboardLayout>
     );
 }
-

@@ -29,13 +29,6 @@ import { Plus, Search, Edit, Trash2, X, ChevronDown, QrCode, Printer } from 'luc
 import { PageProps, Teacher, Subject } from '@/types';
 import { toast } from 'sonner';
 import { QRPrintDialog } from '@/components/features/qr/QRPrintDialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 
 interface TeachersPageProps extends PageProps {
     teachers: {
@@ -122,7 +115,6 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
 
     const handleEdit = (teacher: Teacher) => {
         setSelectedTeacher(teacher);
-        const isOwnTeacher = currentUser?.role === 'guru' && currentUser?.teacher_id === teacher.id;
         setFormData({
             nip: teacher.nip,
             name: teacher.name,
@@ -139,12 +131,12 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         e.preventDefault();
         if (!selectedTeacher) return;
         setIsSubmitting(true);
-        
+
         // If editing own teacher, only send subject_ids
-        const updateData = isEditingOwnTeacher() 
+        const updateData = isEditingOwnTeacher()
             ? { subject_ids: formData.subject_ids }
             : formData;
-        
+
         router.put(`/teachers/${selectedTeacher.id}`, updateData, {
             onSuccess: () => {
                 setIsEditOpen(false);
@@ -187,7 +179,7 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
     const handleCreateSubject = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmittingSubject(true);
-        
+
         router.post('/subjects', {
             ...subjectFormData,
             from: 'teachers', // Add parameter to indicate request from teachers page
@@ -210,11 +202,6 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         });
     };
 
-    const formatSubjectDisplay = (subjects: Subject[] | undefined): string => {
-        if (!subjects || subjects.length === 0) return '-';
-        return subjects.map(s => s.nama).join(', ');
-    };
-
     const handlePrintQRSingle = (teacher: Teacher) => {
         setSelectedTeacherForQR(teacher);
         setQrPrintMode('single');
@@ -225,23 +212,23 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         setSelectedTeacherForQR(null);
         setQrPrintMode('all');
         setIsLoadingQR(true);
-        
+
         try {
             // Build query params with current filters
             const params: Record<string, string> = {};
             if (search) params.search = search;
-            
+
             const response = await window.axios.get('/teachers/for-qr', { params });
-            
+
             if (response.data && response.data.data) {
                 setQrData(response.data.data);
                 setIsQRPrintOpen(true);
             } else {
                 toast.error('Format data tidak valid');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching QR data:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Gagal mengambil data untuk QR';
+            const errorMessage = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (error as { message?: string })?.message || 'Gagal mengambil data untuk QR';
             toast.error(errorMessage);
         } finally {
             setIsLoadingQR(false);
@@ -728,8 +715,8 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
                     open={isQRPrintOpen}
                     onOpenChange={setIsQRPrintOpen}
                     items={getQRItems()}
-                    title={qrPrintMode === 'single' 
-                        ? `Cetak QR - ${selectedTeacherForQR?.name || ''}` 
+                    title={qrPrintMode === 'single'
+                        ? `Cetak QR - ${selectedTeacherForQR?.name || ''}`
                         : 'Cetak QR Semua Guru'}
                     description={qrPrintMode === 'single'
                         ? `QR Code untuk NIP: ${selectedTeacherForQR?.nip || ''}`
@@ -778,4 +765,3 @@ export default function Index({ teachers, subjects, filters }: TeachersPageProps
         </DashboardLayout>
     );
 }
-

@@ -15,8 +15,6 @@ function getDefaultPhotoUrl(username: string): string {
 }
 
 export default function UpdateProfileInformation({
-    mustVerifyEmail,
-    status,
     className = '',
 }: {
     mustVerifyEmail: boolean;
@@ -32,19 +30,20 @@ export default function UpdateProfileInformation({
         photo: null as File | null,
     });
 
-    // Get photo URL - check if it's a full URL or needs /storage prefix
+    // Get photo URL - use private photo route
     const getPhotoUrl = () => {
         if (user.photo) {
             // If photo starts with http, it's already a full URL
             if (user.photo.startsWith('http')) {
                 return user.photo;
             }
-            // Otherwise, prepend /storage
-            return `/storage/${user.photo}`;
+            // Extract filename and use private photo route
+            const filename = user.photo.split('/').pop();
+            return `/profile-photos/${filename}`;
         }
         return user.avatar || getDefaultPhotoUrl(user.username);
     };
-    
+
     const currentPhotoUrl = getPhotoUrl();
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,9 +90,9 @@ export default function UpdateProfileInformation({
                     <div className="flex items-center gap-6">
                         <div className="relative">
                             <Avatar className="h-24 w-24">
-                                <AvatarImage 
-                                    src={photoPreview || currentPhotoUrl} 
-                                    alt={user.username} 
+                                <AvatarImage
+                                    src={photoPreview || currentPhotoUrl}
+                                    alt={user.username}
                                 />
                                 <AvatarFallback className="text-lg">
                                     {user.username.charAt(0).toUpperCase()}

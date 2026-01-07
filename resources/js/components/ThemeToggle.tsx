@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -18,8 +17,8 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="icon"
           className="border-2 shadow-lg bg-background hover:bg-accent border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 relative overflow-hidden"
         >
@@ -42,4 +41,3 @@ export function ThemeToggle() {
     </DropdownMenu>
   )
 }
-

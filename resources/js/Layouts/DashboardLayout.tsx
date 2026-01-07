@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from 'react';
+import { PropsWithChildren } from 'react';
 import { AppSidebar } from '@/components/features/dashboard/AppSidebar';
 import {
   SidebarInset,

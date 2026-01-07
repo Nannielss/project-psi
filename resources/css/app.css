@@ -94,3 +94,27 @@
         line-height: 1.6;
     }
 }
+
+/* Custom styles for Sonner toast - top-center position and larger size */
+@layer utilities {
+    [data-sonner-toaster] {
+        top: 1rem !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        bottom: auto !important;
+        right: auto !important;
+    }
+    
+    [data-sonner-toast] {
+        font-size: 1.125rem !important; /* 18px */
+        padding: 1.25rem 1.5rem !important; /* 20px 24px */
+        min-width: 450px !important;
+        max-width: 600px !important;
+        font-weight: 500 !important;
+    }
+    
+    [data-sonner-toast] [data-description] {
+        font-size: 1rem !important; /* 16px */
+        margin-top: 0.5rem !important;
+    }
+}

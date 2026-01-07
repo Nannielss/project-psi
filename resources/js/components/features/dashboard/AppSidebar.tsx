@@ -9,8 +9,6 @@ import {
     Package,
     GraduationCap,
     History,
-    FileText,
-    Settings,
     UserCog,
     QrCode,
 } from "lucide-react"

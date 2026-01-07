@@ -12,7 +12,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Search, Wrench, CheckCircle2, XCircle } from 'lucide-react';
 import { PageProps, ToolUnit } from '@/types';
 import { toast } from 'sonner';
@@ -71,9 +70,9 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
 
     const handleTabChange = (tab: 'damaged' | 'scrapped') => {
         setActiveTab(tab);
-        router.get('/maintenance', { 
+        router.get('/maintenance', {
             search: search || undefined,
-            condition: tab 
+            condition: tab
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -82,9 +81,9 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/maintenance', { 
+        router.get('/maintenance', {
             search: search || undefined,
-            condition: activeTab 
+            condition: activeTab
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -101,7 +100,7 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
         if (!selectedUnit || !actionType) return;
 
         setIsProcessing(true);
-        const route = actionType === 'repair' 
+        const route = actionType === 'repair'
             ? `/maintenance/${selectedUnit.id}/repair`
             : `/maintenance/${selectedUnit.id}/scrap`;
 
@@ -127,19 +126,6 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                 }
             },
         });
-    };
-
-    const getConditionBadge = (condition: string) => {
-        switch (condition) {
-            case 'good':
-                return <Badge variant="default" className="bg-green-500">Baik</Badge>;
-            case 'damaged':
-                return <Badge variant="destructive">Rusak</Badge>;
-            case 'scrapped':
-                return <Badge variant="secondary">Rusak Total</Badge>;
-            default:
-                return <Badge variant="secondary">{condition}</Badge>;
-        }
     };
 
     return (
@@ -221,7 +207,7 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
                             <div className="text-center py-12 text-muted-foreground">
                                 <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                 <p>
-                                    {activeTab === 'damaged' 
+                                    {activeTab === 'damaged'
                                         ? 'Tidak ada alat rusak yang perlu diperbaiki'
                                         : 'Tidak ada alat yang rusak total'}
                                 </p>
@@ -398,4 +384,3 @@ export default function Maintenance({ units, filters }: MaintenancePageProps) {
         </DashboardLayout>
     );
 }
-

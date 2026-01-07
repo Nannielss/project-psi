@@ -59,11 +59,32 @@ class ToolLoanController extends Controller
         $student = Student::where('nis', $code)->with('major')->first();
 
         if ($student) {
+            // Check if student has active loans (must return first before borrowing again)
+            $hasActiveLoan = $student->hasActiveLoan();
+            $activeLoans = [];
+            
+            if ($hasActiveLoan) {
+                $activeLoans = ToolLoan::where('student_id', $student->id)
+                    ->where('status', 'borrowed')
+                    ->with('toolUnit.tool')
+                    ->get()
+                    ->map(function ($loan) {
+                        return [
+                            'id' => $loan->id,
+                            'tool_name' => $loan->toolUnit->tool->name,
+                            'unit_code' => $loan->toolUnit->unit_code,
+                            'borrowed_at' => $loan->borrowed_at->format('Y-m-d H:i:s'),
+                        ];
+                    });
+            }
+            
             return response()->json([
                 'success' => true,
                 'type' => 'student',
                 'student' => $student,
                 'teacher' => null,
+                'has_active_loan' => $hasActiveLoan,
+                'active_loans' => $activeLoans,
             ]);
         }
 
@@ -71,6 +92,9 @@ class ToolLoanController extends Controller
         $teacher = Teacher::where('nip', $code)->with('subjects')->first();
 
         if ($teacher) {
+            // Hide NIP from response for privacy
+            $teacher->makeHidden('nip');
+            
             return response()->json([
                 'success' => true,
                 'type' => 'teacher',
@@ -138,7 +162,11 @@ class ToolLoanController extends Controller
      */
     public function getTeachers()
     {
-        $teachers = Teacher::with('subjects')->orderBy('name')->get();
+        $teachers = Teacher::with('subjects')
+            ->select('id', 'name') 
+            ->orderBy('name')
+            ->get()
+            ->makeHidden('nip'); 
 
         return response()->json([
             'success' => true,
@@ -280,6 +308,36 @@ class ToolLoanController extends Controller
                 ->withInput();
         }
 
+        // Check if student has active loans (must return first before borrowing again)
+        if (!empty($validated['student_id'])) {
+            $student = Student::findOrFail($validated['student_id']);
+            if ($student->hasActiveLoan()) {
+                $activeLoans = ToolLoan::where('student_id', $validated['student_id'])
+                    ->where('status', 'borrowed')
+                    ->with('toolUnit.tool')
+                    ->get();
+                
+                $toolNames = $activeLoans->map(function ($loan) {
+                    return $loan->toolUnit->tool->name . ' (' . $loan->toolUnit->unit_code . ')';
+                })->join(', ');
+                
+                $errorMessage = 'Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ' . $toolNames;
+                
+                // Return JSON response for axios requests
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMessage,
+                        'errors' => ['student_id' => [$errorMessage]],
+                    ], 422);
+                }
+                
+                return redirect()->back()
+                    ->withErrors(['student_id' => $errorMessage])
+                    ->withInput();
+            }
+        }
+
         // Verify tool unit is available
         $toolUnit = ToolUnit::findOrFail($validated['tool_unit_id']);
         if ($toolUnit->isBorrowed()) {
@@ -300,8 +358,8 @@ class ToolLoanController extends Controller
                 ->withInput();
         }
 
-        // Handle photo upload
-        $photoPath = $request->file('borrow_photo')->store('tool-loans/borrow', 'public');
+        // Handle photo upload (store privately)
+        $photoPath = $request->file('borrow_photo')->store('tool-loans/borrow');
 
         // Create loan record
         $loanData = [
@@ -362,8 +420,8 @@ class ToolLoanController extends Controller
             }
         }
 
-        // Handle photo upload
-        $photoPath = $request->file('return_photo')->store('tool-loans/return', 'public');
+        // Handle photo upload (store privately)
+        $photoPath = $request->file('return_photo')->store('tool-loans/return');
 
         $successCount = 0;
         $errors = [];
@@ -448,9 +506,17 @@ class ToolLoanController extends Controller
             ], 404);
         }
 
+        // Hide sensitive data from public route
+        $loanData = $activeLoan->load('toolUnit.tool')->toArray();
+        
+        // Remove NIP if borrowerTeacher exists
+        if (isset($loanData['borrower_teacher']) && isset($loanData['borrower_teacher']['nip'])) {
+            unset($loanData['borrower_teacher']['nip']);
+        }
+
         return response()->json([
             'success' => true,
-            'loan' => $activeLoan->load('toolUnit.tool'),
+            'loan' => $loanData,
         ]);
     }
 
@@ -472,7 +538,15 @@ class ToolLoanController extends Controller
             ->where('status', 'borrowed')
             ->with(['toolUnit.tool'])
             ->orderBy('borrowed_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($loan) {
+                $loanData = $loan->toArray();
+                // Remove NIP if borrowerTeacher exists (security: hide sensitive data from public route)
+                if (isset($loanData['borrower_teacher']) && isset($loanData['borrower_teacher']['nip'])) {
+                    unset($loanData['borrower_teacher']['nip']);
+                }
+                return $loanData;
+            });
 
         return response()->json([
             'success' => true,
@@ -861,5 +935,29 @@ class ToolLoanController extends Controller
             'loans' => $loans,
             'filters' => $request->only(['search', 'status', 'date_from', 'date_to']),
         ]);
+    }
+
+    /**
+     * Serve private tool loan photos (requires authentication).
+     */
+    public function servePhoto(string $type, string $filename)
+    {
+        // Validate photo type
+        if (!in_array($type, ['borrow', 'return'])) {
+            abort(404);
+        }
+
+        $path = "tool-loans/{$type}/{$filename}";
+
+        // Check if file exists in private storage
+        if (!Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+
+        // Get the file and return as response
+        $file = Storage::disk('local')->get($path);
+        $mimeType = Storage::disk('local')->mimeType($path);
+
+        return response($file, 200)->header('Content-Type', $mimeType);
     }
 }

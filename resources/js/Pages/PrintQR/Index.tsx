@@ -12,7 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Printer, X } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { PageProps, Student, Teacher, Major } from '@/types';
 import { toast } from 'sonner';
 import { QRPrintDialog } from '@/components/features/qr/QRPrintDialog';
@@ -37,7 +37,7 @@ export default function PrintQR({ majors, classes, filters }: PrintQRPageProps) 
     const [majorFilter, setMajorFilter] = useState(filters?.major_id || '');
     const [classFilter, setClassFilter] = useState(filters?.class || '');
     const [isQRPrintOpen, setIsQRPrintOpen] = useState(false);
-    const [qrData, setQrData] = useState<any[]>([]);
+    const [qrData, setQrData] = useState<(Student | Teacher | { id: number; unit_code: string; unit_number: number; tool: { id: number; name: string; location: string } })[]>([]);
     const [isLoadingQR, setIsLoadingQR] = useState(false);
 
     useEffect(() => {
@@ -51,11 +51,11 @@ export default function PrintQR({ majors, classes, filters }: PrintQRPageProps) 
 
     const handleLoadQRData = async () => {
         setIsLoadingQR(true);
-        
+
         try {
             const params: Record<string, string> = {};
             if (search) params.search = search;
-            
+
             let endpoint = '';
             if (activeCategory === 'student') {
                 endpoint = '/students/for-qr';
@@ -66,18 +66,18 @@ export default function PrintQR({ majors, classes, filters }: PrintQRPageProps) 
             } else {
                 endpoint = '/tools/for-qr';
             }
-            
+
             const response = await window.axios.get(endpoint, { params });
-            
+
             if (response.data && response.data.data) {
                 setQrData(response.data.data);
                 setIsQRPrintOpen(true);
             } else {
                 toast.error('Format data tidak valid');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching QR data:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Gagal mengambil data untuk QR';
+            const errorMessage = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (error as { message?: string })?.message || 'Gagal mengambil data untuk QR';
             toast.error(errorMessage);
         } finally {
             setIsLoadingQR(false);
@@ -86,27 +86,33 @@ export default function PrintQR({ majors, classes, filters }: PrintQRPageProps) 
 
     const getQRItems = () => {
         if (activeCategory === 'student') {
-            return qrData.map((student: Student) => ({
-                id: student.id,
-                code: student.nis,
-                name: student.name,
-                subtitle: `${student.class} - ${student.major?.name || ''}`,
-            }));
+            return qrData
+                .filter((item): item is Student => 'nis' in item && 'class' in item)
+                .map((student) => ({
+                    id: student.id,
+                    code: student.nis,
+                    name: student.name,
+                    subtitle: `${student.class} - ${student.major?.name || ''}`,
+                }));
         } else if (activeCategory === 'teacher') {
-            return qrData.map((teacher: Teacher) => ({
-                id: teacher.id,
-                code: teacher.nip,
-                name: teacher.name,
-                subtitle: teacher.subjects?.map(s => s.nama).join(', ') || undefined,
-            }));
+            return qrData
+                .filter((item): item is Teacher => 'nip' in item && !('class' in item))
+                .map((teacher) => ({
+                    id: teacher.id,
+                    code: teacher.nip,
+                    name: teacher.name,
+                    subtitle: teacher.subjects?.map(s => s.nama).join(', ') || undefined,
+                }));
         } else {
             // Tool units
-            return qrData.map((item: any) => ({
-                id: item.id,
-                code: item.unit_code,
-                name: `${item.tool.name} #${item.unit_number}`,
-                subtitle: item.tool.location,
-            }));
+            return qrData
+                .filter((item): item is { id: number; unit_code: string; unit_number: number; tool: { id: number; name: string; location: string } } => 'unit_code' in item && 'tool' in item)
+                .map((item) => ({
+                    id: item.id,
+                    code: item.unit_code,
+                    name: `${item.tool.name} #${item.unit_number}`,
+                    subtitle: item.tool.location,
+                }));
         }
     };
 
@@ -318,4 +324,3 @@ export default function PrintQR({ majors, classes, filters }: PrintQRPageProps) 
         </DashboardLayout>
     );
 }
-

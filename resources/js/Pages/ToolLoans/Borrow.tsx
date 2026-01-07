@@ -45,23 +45,24 @@ export default function Borrow() {
     const { flash, auth } = usePage().props as BorrowPageProps & { auth: { user: { role?: string; teacher?: Teacher } } };
     const currentUser = auth?.user;
     const isGuru = currentUser?.role === 'guru';
-    
+
     const [step, setStep] = useState(1);
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
     const [pendingStudent, setPendingStudent] = useState<Student | null>(null);
+    const [studentActiveLoans, setStudentActiveLoans] = useState<Array<{ id: number; tool_name: string; unit_code: string; borrowed_at: string }>>([]);
     const [isConfirmStudentOpen, setIsConfirmStudentOpen] = useState(false);
-    const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
-    const [studentVerificationError, setStudentVerificationError] = useState('');
+    const [_isVerifyingStudent, setIsVerifyingStudent] = useState(false);
+    const [_studentVerificationError, setStudentVerificationError] = useState('');
     const [qrScannerKey, setQrScannerKey] = useState(0);
-    
+
     // Teacher verification state (for guru self-borrowing)
     const [nip, setNip] = useState('');
     const [verifiedTeacher, setVerifiedTeacher] = useState<Teacher | null>(null);
     const [pendingTeacher, setPendingTeacher] = useState<Teacher | null>(null);
     const [isConfirmTeacherOpen, setIsConfirmTeacherOpen] = useState(false);
-    const [isVerifyingTeacher, setIsVerifyingTeacher] = useState(false);
-    const [teacherVerificationError, setTeacherVerificationError] = useState('');
+    const [_isVerifyingTeacher, setIsVerifyingTeacher] = useState(false);
+    const [_teacherVerificationError, setTeacherVerificationError] = useState('');
 
     const [unitCode, setUnitCode] = useState('');
     const [isVerifyingTool, setIsVerifyingTool] = useState(false);
@@ -71,8 +72,6 @@ export default function Borrow() {
     const [studentPhoto, setStudentPhoto] = useState<File | null>(null);
     const [studentPhotoPreview, setStudentPhotoPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [scannerType, setScannerType] = useState<'student' | 'teacher' | 'tool'>('student');
 
     // Tab and Catalog state
     const [activeTab, setActiveTab] = useState<'search' | 'qr'>('search');
@@ -153,9 +152,9 @@ export default function Borrow() {
             if (response.data.success) {
                 setTeachers(response.data.teachers);
             }
-        } catch (error) {
-            console.error('Error loading teachers:', error);
-        }
+            } catch {
+                // Ignore error
+            }
     };
 
     const handleVerifyBorrower = async (codeToVerify?: string) => {
@@ -183,7 +182,28 @@ export default function Borrow() {
             if (response.data.success) {
                 if (response.data.type === 'student') {
                     setPendingStudent(response.data.student);
+                    setStudentActiveLoans(response.data.active_loans || []);
                     setNis(codeValue);
+                    
+                    // Check if student has active loans
+                    if (response.data.has_active_loan) {
+                        const toolNames = response.data.active_loans
+                            .map((loan: { tool_name: string; unit_code: string }) => 
+                                `${loan.tool_name} (${loan.unit_code})`
+                            )
+                            .join(', ');
+                        const errorMessage = `Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ${toolNames}`;
+                        toast.error(errorMessage);
+                        // Reset states and QR scanner to reactivate camera
+                        setPendingStudent(null);
+                        setStudentActiveLoans([]);
+                        setStudentVerificationError('');
+                        setIsVerifyingStudent(false);
+                        // Reset QRScanner by changing key to force re-render and reactivate camera
+                        setQrScannerKey(prev => prev + 1);
+                        return;
+                    }
+                    
                     setIsConfirmStudentOpen(true);
                 } else if (response.data.type === 'teacher') {
                     setPendingTeacher(response.data.teacher);
@@ -191,16 +211,22 @@ export default function Borrow() {
                     setIsConfirmTeacherOpen(true);
                 }
             }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Peminjam tidak ditemukan';
+        } catch (error: unknown) {
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Peminjam tidak ditemukan';
+            toast.error(errorMessage);
             if (isGuru) {
-                setTeacherVerificationError(errorMessage);
+                setTeacherVerificationError('');
                 setVerifiedTeacher(null);
                 setPendingTeacher(null);
+                // Reset QRScanner to reactivate camera
+                setQrScannerKey(prev => prev + 1);
             } else {
-                setStudentVerificationError(errorMessage);
+                setStudentVerificationError('');
                 setVerifiedStudent(null);
                 setPendingStudent(null);
+                setStudentActiveLoans([]);
+                // Reset QRScanner to reactivate camera
+                setQrScannerKey(prev => prev + 1);
             }
         } finally {
             if (isGuru) {
@@ -231,7 +257,7 @@ export default function Borrow() {
                         setToolVerificationError('Alat ini sudah ditambahkan');
                         return prevTools;
                     }
-                    
+
                     const newTool: SelectedTool = {
                         toolUnit: response.data.tool_unit,
                         photo: null,
@@ -246,8 +272,8 @@ export default function Borrow() {
                 return true;
             }
             return false;
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Alat tidak ditemukan';
+        } catch (error: unknown) {
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Alat tidak ditemukan';
             setToolVerificationError(errorMessage);
             return false;
         } finally {
@@ -273,14 +299,29 @@ export default function Borrow() {
 
     const handleConfirmStudent = () => {
         if (!pendingStudent) return;
+        
+        // Double check: prevent confirmation if student has active loans
+        if (studentActiveLoans.length > 0) {
+            const toolNames = studentActiveLoans
+                .map(loan => `${loan.tool_name} (${loan.unit_code})`)
+                .join(', ');
+            toast.error(`Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ${toolNames}`);
+            setIsConfirmStudentOpen(false);
+            // Reset QRScanner to reactivate camera
+            setQrScannerKey(prev => prev + 1);
+            return;
+        }
+        
         setVerifiedStudent(pendingStudent);
         setPendingStudent(null);
+        setStudentActiveLoans([]);
         setIsConfirmStudentOpen(false);
         setStep(2);
     };
 
     const handleCancelStudent = () => {
         setPendingStudent(null);
+        setStudentActiveLoans([]);
         setIsConfirmStudentOpen(false);
         // Reset QRScanner by changing key to force re-render
         setQrScannerKey(prev => prev + 1);
@@ -299,9 +340,9 @@ export default function Borrow() {
                 setToolsCatalog(response.data.tools);
                 setFilteredCatalog(response.data.tools);
             }
-        } catch (error) {
-            toast.error('Gagal memuat katalog alat');
-        } finally {
+            } catch {
+                toast.error('Gagal memuat katalog alat');
+            } finally {
             setIsLoadingCatalog(false);
         }
     };
@@ -344,10 +385,10 @@ export default function Borrow() {
                     setSelectedToolForCatalog(null);
                 }
             }
-        } catch (error) {
-            toast.error('Gagal memuat unit yang tersedia');
-            setSelectedToolForCatalog(null);
-        } finally {
+            } catch {
+                toast.error('Gagal memuat unit yang tersedia');
+                setSelectedToolForCatalog(null);
+            } finally {
             setIsLoadingUnits(false);
         }
     };
@@ -388,7 +429,7 @@ export default function Borrow() {
                     // Check if already in selectedTools or in our new list
                     const alreadyExists = selectedTools.some((t) => t.toolUnit.id === unit.id) ||
                                          toolsToAdd.some((t) => t.toolUnit.id === unit.id);
-                    
+
                     if (!alreadyExists) {
                         toolsToAdd.push({
                             toolUnit: response.data.tool_unit,
@@ -402,9 +443,9 @@ export default function Borrow() {
                 } else {
                     errorCount++;
                 }
-            } catch (error) {
-                errorCount++;
-            }
+                } catch {
+                    errorCount++;
+                }
         }
 
         // Add all verified tools at once
@@ -447,14 +488,14 @@ export default function Borrow() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Check if borrower is verified
         // Must have either verifiedTeacher (for guru) or verifiedStudent (for student)
         if (!verifiedTeacher && !verifiedStudent) {
             toast.error('Verifikasi identitas peminjam terlebih dahulu dengan scan QR di step 1');
             return;
         }
-        
+
         if (selectedTools.length === 0) {
             toast.error('Minimal 1 alat harus dipilih');
             return;
@@ -474,14 +515,14 @@ export default function Borrow() {
                 const tool = selectedTools[i];
                 try {
                     const formData = new FormData();
-                    
+
                     // Determine borrower: teacher takes priority if both exist
                     if (verifiedTeacher) {
                         formData.append('borrower_teacher_id', verifiedTeacher.id.toString());
                     } else if (verifiedStudent) {
                         formData.append('student_id', verifiedStudent.id.toString());
                     }
-                    
+
                     formData.append('tool_unit_id', tool.toolUnit.id.toString());
                     formData.append('borrow_photo', studentPhoto);
                     if (selectedTeacherId) {
@@ -495,9 +536,14 @@ export default function Borrow() {
                         headers: { 'Content-Type': 'multipart/form-data' },
                     });
                     results.push({ success: true, tool: tool.toolUnit.unit_code });
-                } catch (error: any) {
-                    const errorMessage = error.response?.data?.message || error.message;
+                } catch (error: unknown) {
+                    const err = error as { response?: { data?: { message?: string; errors?: { student_id?: string[] } } }; message?: string };
+                    const errorMessage = err.response?.data?.message 
+                        || err.response?.data?.errors?.student_id?.[0]
+                        || err.message;
                     results.push({ success: false, tool: tool.toolUnit.unit_code, error: errorMessage });
+                    // Show error toast for each failed tool
+                    toast.error(`Gagal meminjam ${tool.toolUnit.unit_code}: ${errorMessage}`);
                 }
             }
 
@@ -519,20 +565,13 @@ export default function Borrow() {
                 const failedTools = results.filter((r) => !r.success).map((r) => r.tool);
                 setSelectedTools(selectedTools.filter((t) => failedTools.includes(t.toolUnit.unit_code)));
             }
-        } catch (error: any) {
+        } catch {
             toast.error('Terjadi kesalahan saat menyimpan data');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleQRScanSuccess = (decodedText: string) => {
-        if (scannerType === 'student' || scannerType === 'teacher') {
-            handleVerifyBorrower(decodedText);
-        } else {
-            handleVerifyTool(decodedText);
-        }
-    };
 
     return (
         <div className="min-h-screen bg-background">
@@ -606,11 +645,6 @@ export default function Borrow() {
                                             onScanError={(error) => toast.error(error)}
                                             inline={true}
                                         />
-                                        {teacherVerificationError && (
-                                            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
-                                                {teacherVerificationError}
-                                            </div>
-                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -625,11 +659,6 @@ export default function Borrow() {
                                             onScanError={(error) => toast.error(error)}
                                             inline={true}
                                         />
-                                        {studentVerificationError && (
-                                            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
-                                                {studentVerificationError}
-                                            </div>
-                                        )}
                                     </>
                                 )}
                             </CardContent>
@@ -659,7 +688,6 @@ export default function Borrow() {
                                         <div className="text-center space-y-1">
                                             <p className="text-sm font-medium text-muted-foreground">Guru Terverifikasi</p>
                                             <p className="font-semibold">{verifiedTeacher.name}</p>
-                                            <p className="text-xs text-muted-foreground">NIP: {verifiedTeacher.nip}</p>
                                         </div>
                                     </div>
                                 ) : null}
@@ -788,7 +816,7 @@ export default function Borrow() {
                                         }}
                                         className="flex-1"
                                     >
-                                        {isGuru ? 'Ganti Guru' : 'Ganti Siswa'}
+                                       Kembali
                                     </Button>
                                     {selectedTools.length > 0 && (
                                         <Button onClick={() => setStep(3)} className="flex-1" size="lg">
@@ -805,9 +833,8 @@ export default function Borrow() {
                         <form onSubmit={handleSubmit}>
                             <Card className="border-2">
                                 <CardHeader className="text-center pb-6">
-                                    <CardTitle className="text-2xl mb-2">Konfirmasi Peminjaman</CardTitle>
                                     <CardDescription className="text-base">
-                                        {isGuru && verifiedTeacher 
+                                        {isGuru && verifiedTeacher
                                             ? 'Ambil foto, pilih guru dan mapel, lalu konfirmasi data peminjaman'
                                             : 'Ambil foto wajah siswa, pilih guru dan mapel, lalu konfirmasi data peminjaman'}
                                     </CardDescription>
@@ -826,7 +853,6 @@ export default function Borrow() {
                                             <div className="text-center space-y-1">
                                                 <p className="text-sm font-medium text-muted-foreground">Guru</p>
                                                 <p className="font-semibold text-lg">{verifiedTeacher.name}</p>
-                                                <p className="text-sm text-muted-foreground">NIP: {verifiedTeacher.nip}</p>
                                             </div>
                                         </div>
                                     ) : null}
@@ -966,7 +992,6 @@ export default function Borrow() {
                 {pendingTeacher && (
                     <div className="space-y-2">
                         <p className="text-lg font-semibold text-center">{pendingTeacher.name}</p>
-                        <p className="text-center text-muted-foreground">NIP: {pendingTeacher.nip}</p>
                         {pendingTeacher.subjects && pendingTeacher.subjects.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1 justify-center">
                                 {pendingTeacher.subjects.map((subject) => (

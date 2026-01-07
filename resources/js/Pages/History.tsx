@@ -509,13 +509,13 @@ export default function History({ loans, filters }: HistoryPageProps) {
                             <div className="space-y-4">
                                 {photoType === 'borrow' && selectedLoan.borrow_photo ? (
                                     <img
-                                        src={`/storage/${selectedLoan.borrow_photo}`}
+                                        src={`/tool-loan-photos/borrow/${selectedLoan.borrow_photo.split('/').pop()}`}
                                         alt="Foto peminjaman"
                                         className="w-full rounded-lg border"
                                     />
                                 ) : photoType === 'return' && selectedLoan.return_photo ? (
                                     <img
-                                        src={`/storage/${selectedLoan.return_photo}`}
+                                        src={`/tool-loan-photos/return/${selectedLoan.return_photo.split('/').pop()}`}
                                         alt="Foto pengembalian"
                                         className="w-full rounded-lg border"
                                     />

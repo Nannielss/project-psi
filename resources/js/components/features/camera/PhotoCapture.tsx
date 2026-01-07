@@ -66,9 +66,9 @@ export function PhotoCapture({
                 videoRef.current.srcObject = stream;
                 videoRef.current.play();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error accessing camera:', err);
-            setError(err.message || 'Gagal mengakses kamera');
+            setError((err as { message?: string })?.message || 'Gagal mengakses kamera');
             setIsCapturing(false);
         }
     };

@@ -27,6 +27,12 @@ Route::get('/dashboard', [ToolLoanController::class, 'dashboard'])->middleware([
 Route::get('/history', [ToolLoanController::class, 'history'])->middleware(['auth', 'verified'])->name('history');
 Route::get('/history/export', [ToolLoanController::class, 'exportHistory'])->middleware(['auth', 'verified'])->name('history.export');
 
+// Private tool loan photos (requires auth)
+Route::get('/tool-loan-photos/{type}/{filename}', [ToolLoanController::class, 'servePhoto'])
+    ->middleware(['auth', 'verified'])
+    ->where('type', 'borrow|return')
+    ->name('tool-loan-photos');
+
 // Tool Loans - Public routes (no auth required)
 Route::get('tool-loans', [ToolLoanController::class, 'indexPage'])->name('tool-loans.index-page');
 Route::get('tool-loans/borrow', [ToolLoanController::class, 'borrowPage'])->name('tool-loans.borrow');
@@ -36,7 +42,9 @@ Route::get('tool-loans/search-tools', [ToolLoanController::class, 'searchTools']
 Route::get('tool-loans/tools-catalog', [ToolLoanController::class, 'getToolsCatalog'])->name('tool-loans.tools-catalog');
 Route::get('tool-loans/tools/{toolId}/available-units', [ToolLoanController::class, 'getAvailableUnits'])->name('tool-loans.available-units');
 Route::get('tool-loans/active-loans/{studentId}', [ToolLoanController::class, 'getActiveLoansByStudent'])->name('tool-loans.active-loans');
-Route::post('tool-loans/verify-borrower', [ToolLoanController::class, 'verifyBorrower'])->name('tool-loans.verify-borrower');
+Route::post('tool-loans/verify-borrower', [ToolLoanController::class, 'verifyBorrower'])
+    ->middleware('throttle:verify-borrower')
+    ->name('tool-loans.verify-borrower');
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
 Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');
 Route::post('tool-loans/borrow', [ToolLoanController::class, 'storeBorrow'])->name('tool-loans.store-borrow');
@@ -46,6 +54,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Private profile photos
+    Route::get('/profile-photos/{filename}', [ProfileController::class, 'servePhoto'])->name('profile-photos');
 
     // Students routes - specific routes before resource
     Route::get('students/for-qr', [StudentController::class, 'forQr'])->name('students.for-qr');

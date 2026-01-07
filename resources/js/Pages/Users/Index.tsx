@@ -99,7 +99,12 @@ export default function Index({ users, teachers, filters }: UsersPageProps) {
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const submitData: any = {
+        const submitData: {
+            username: string;
+            password: string;
+            role: string;
+            teacher_id?: string;
+        } = {
             username: formData.username,
             password: formData.password,
             role: formData.role,
@@ -132,7 +137,7 @@ export default function Index({ users, teachers, filters }: UsersPageProps) {
             username: user.username,
             password: '',
             role: (user.role as 'admin' | 'kajur' | 'wakajur' | 'guru') || '',
-            teacher_id: (user as any).teacher_id?.toString() || '',
+            teacher_id: (user as User & { teacher_id?: number }).teacher_id?.toString() || '',
         });
         setIsEditOpen(true);
     };
@@ -143,7 +148,12 @@ export default function Index({ users, teachers, filters }: UsersPageProps) {
         setIsSubmitting(true);
         
         // Only include password if it's not empty
-        const updateData: any = {
+        const updateData: {
+            username: string;
+            role: string;
+            password?: string;
+            teacher_id?: string | null;
+        } = {
             username: formData.username,
             role: formData.role,
         };
@@ -431,9 +441,9 @@ export default function Index({ users, teachers, filters }: UsersPageProps) {
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {(user as any).teacher ? (
+                                                        {(user as User & { teacher?: Teacher }).teacher ? (
                                                             <span className="text-sm">
-                                                                {(user as any).teacher.name} ({(user as any).teacher.nip})
+                                                                {(user as User & { teacher: Teacher }).teacher.name} ({(user as User & { teacher: Teacher }).teacher.nip})
                                                             </span>
                                                         ) : (
                                                             <span className="text-muted-foreground text-sm">-</span>

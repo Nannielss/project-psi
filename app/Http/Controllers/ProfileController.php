@@ -32,15 +32,22 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         
-        // Handle photo upload
+        // Handle photo upload (store privately)
         if ($request->hasFile('photo')) {
-            // Delete old photo if exists
-            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-                Storage::disk('public')->delete($user->photo);
+            // Delete old photo if exists (check both public and private storage for migration)
+            if ($user->photo) {
+                // Try to delete from private storage first
+                if (Storage::disk('local')->exists($user->photo)) {
+                    Storage::disk('local')->delete($user->photo);
+                }
+                // Also try public storage for old photos
+                if (Storage::disk('public')->exists($user->photo)) {
+                    Storage::disk('public')->delete($user->photo);
+                }
             }
             
-            // Store new photo
-            $photoPath = $request->file('photo')->store('photos', 'public');
+            // Store new photo privately
+            $photoPath = $request->file('photo')->store('photos');
             $user->photo = $photoPath;
         }
         
@@ -52,6 +59,25 @@ class ProfileController extends Controller
         $user->save();
 
         return Redirect::route('profile.edit');
+    }
+
+    /**
+     * Serve private profile photos (requires authentication).
+     */
+    public function servePhoto(string $filename)
+    {
+        $path = "photos/{$filename}";
+
+        // Check if file exists in private storage
+        if (!Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+
+        // Get the file and return as response
+        $file = Storage::disk('local')->get($path);
+        $mimeType = Storage::disk('local')->mimeType($path);
+
+        return response($file, 200)->header('Content-Type', $mimeType);
     }
 
     /**

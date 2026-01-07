@@ -36,7 +36,6 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                 stopScanner();
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     const startScanner = async () => {
@@ -59,17 +58,18 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                     // Success callback
                     handleScanSuccess(decodedText);
                 },
-                (errorMessage) => {
+                () => {
                     // Error callback - ignore most errors as they're just scanning attempts
                     // These are normal during scanning process
                 }
             );
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error starting scanner:', err);
-            setError(err.message || 'Gagal mengakses kamera');
+            const errorMessage = (err as { message?: string })?.message || 'Gagal mengakses kamera';
+            setError(errorMessage);
             setIsScanning(false);
             if (onScanError) {
-                onScanError(err.message || 'Gagal mengakses kamera');
+                onScanError(errorMessage);
             }
         }
     };
@@ -88,7 +88,7 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
             try {
                 await scannerRef.current.stop();
                 scannerRef.current.clear();
-            } catch (err) {
+            } catch {
                 // Ignore errors when stopping scanner
             }
             scannerRef.current = null;
@@ -190,4 +190,3 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
         </Dialog>
     );
 }
-

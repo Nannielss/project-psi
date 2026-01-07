@@ -10,7 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Package } from 'lucide-react';
 import { Student, ToolLoan, PageProps } from '@/types';
@@ -36,7 +36,7 @@ export default function Return() {
     const { flash } = usePage<ReturnPageProps>().props;
     const [nis, setNis] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
-    const [isVerifyingStudent, setIsVerifyingStudent] = useState(false);
+    const [_isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [studentVerificationError, setStudentVerificationError] = useState('');
 
     const [activeLoans, setActiveLoans] = useState<ToolLoan[]>([]);
@@ -88,8 +88,8 @@ export default function Return() {
                     notes: '',
                 })));
             }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Gagal memuat daftar pinjaman';
+        } catch (error: unknown) {
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memuat daftar pinjaman';
             toast.error(errorMessage);
         } finally {
             setIsLoadingLoans(false);
@@ -114,8 +114,8 @@ export default function Return() {
             } else {
                 setStudentVerificationError('Data yang ditemukan bukan siswa');
             }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || 'Siswa tidak ditemukan';
+        } catch (error: unknown) {
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Siswa tidak ditemukan';
             setStudentVerificationError(errorMessage);
             setVerifiedStudent(null);
         } finally {

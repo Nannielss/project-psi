@@ -2,10 +2,8 @@
 
 import { Link } from "@inertiajs/react"
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconLogout,
-  IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react"
 
@@ -47,16 +45,17 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   
-  // Get photo URL - check if it's a full URL or needs /storage prefix
+  // Get photo URL - use private photo route
   const getPhotoUrl = () => {
     if (user.avatar) {
       // If photo starts with http, it's already a full URL
       if (user.avatar.startsWith('http')) {
         return user.avatar;
       }
-      // If it's a storage path, prepend /storage
+      // If it's a storage path, use private photo route
       if (user.avatar.startsWith('photos/')) {
-        return `/storage/${user.avatar}`;
+        const filename = user.avatar.split('/').pop();
+        return `/profile-photos/${filename}`;
       }
       // Otherwise return as is
       return user.avatar;

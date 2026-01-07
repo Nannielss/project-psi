@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, Package, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, Image as ImageIcon, Package } from 'lucide-react';
 import { PageProps, Material, Teacher } from '@/types';
 import { toast } from 'sonner';
 

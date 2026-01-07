@@ -276,7 +276,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
             const data = await response.json();
             setUnits(data.units || []);
             setIsUnitsOpen(true);
-        } catch (error) {
+        } catch {
             toast.error('Gagal memuat data unit');
         }
     };
@@ -422,9 +422,9 @@ export default function Index({ tools, filters }: ToolsPageProps) {
             } else {
                 toast.error('Format data tidak valid');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching QR data:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Gagal mengambil data untuk QR';
+            const errorMessage = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (error as { message?: string })?.message || 'Gagal mengambil data untuk QR';
             toast.error(errorMessage);
         } finally {
             setIsLoadingQR(false);
