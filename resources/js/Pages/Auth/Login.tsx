@@ -50,6 +50,7 @@ export default function Login() {
                                     onChange={(e) => setData('username', e.target.value)}
                                     className={errors.username ? 'border-destructive' : ''}
                                     disabled={processing}
+                                    autoComplete='username'
                                 />
                                 {errors.username && (
                                     <p className="text-sm text-destructive">{errors.username}</p>
@@ -65,6 +66,7 @@ export default function Login() {
                                     onChange={(e) => setData('password', e.target.value)}
                                     className={errors.password ? 'border-destructive' : ''}
                                     disabled={processing}
+                                    autoComplete='current-password'
                                 />
                                 {errors.password && (
                                     <p className="text-sm text-destructive">{errors.password}</p>
