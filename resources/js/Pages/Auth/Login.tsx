@@ -78,7 +78,7 @@ export default function Login() {
                                     checked={data.remember}
                                     onChange={(e) => setData('remember', e.target.checked)}
                                     disabled={processing}
-                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-offset-gray-900 dark:hover:bg-gray-600 dark:checked:bg-primary"
                                 />
                                 <Label
                                     htmlFor="remember"
