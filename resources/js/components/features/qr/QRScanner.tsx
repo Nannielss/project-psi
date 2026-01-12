@@ -66,6 +66,21 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                     // These are normal during scanning process
                 }
             );
+
+            setTimeout(async () => {
+                const cameras = await Html5Qrcode.getCameras();
+                const cam = cameras[0]?.label?.toLowerCase() || "";
+
+                const video = document.querySelector("#qr-scanner video") as HTMLVideoElement;
+                if (!video) return;
+
+                // Jika bukan kamera belakang → un-mirror
+                if (!cam.includes("back") && !cam.includes("rear") && !cam.includes("environment")) {
+                    video.style.transform = "scaleX(-1)";
+                } else {
+                    video.style.transform = "none";
+                }
+            }, 300);
         } catch (err: unknown) {
             console.error('Error starting scanner:', err);
             const errorMessage = (err as { message?: string })?.message || 'Gagal mengakses kamera';
