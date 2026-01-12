@@ -13,7 +13,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Package } from 'lucide-react';
-import { Student, ToolLoan, PageProps } from '@/types';
+import { Student, Teacher, ToolLoan, PageProps } from '@/types';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { QRScanner } from '@/components/features/qr/QRScanner';
@@ -34,10 +34,11 @@ interface ReturnItem {
 
 export default function Return() {
     const { flash } = usePage<ReturnPageProps>().props;
-    const [nis, setNis] = useState('');
+    const [code, setCode] = useState('');
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
-    const [_isVerifyingStudent, setIsVerifyingStudent] = useState(false);
-    const [studentVerificationError, setStudentVerificationError] = useState('');
+    const [verifiedTeacher, setVerifiedTeacher] = useState<Teacher | null>(null);
+    const [isVerifyingBorrower, setIsVerifyingBorrower] = useState(false);
+    const [borrowerVerificationError, setBorrowerVerificationError] = useState('');
 
     const [activeLoans, setActiveLoans] = useState<ToolLoan[]>([]);
     const [isLoadingLoans, setIsLoadingLoans] = useState(false);
@@ -58,26 +59,34 @@ export default function Return() {
         }
     }, [flash]);
 
-    // Load active loans when student is verified
+    // Load active loans when borrower is verified
     useEffect(() => {
-        if (verifiedStudent) {
+        if (verifiedStudent || verifiedTeacher) {
             loadActiveLoans();
         }
-    }, [verifiedStudent]);
+    }, [verifiedStudent, verifiedTeacher]);
 
     // Auto-open camera when loans are loaded and no photo yet
     useEffect(() => {
-        if (verifiedStudent && returnItems.length > 0 && !photoPreview) {
+        if ((verifiedStudent || verifiedTeacher) && returnItems.length > 0 && !photoPreview) {
             setIsPhotoOpen(true);
         }
-    }, [verifiedStudent, returnItems.length, photoPreview]);
+    }, [verifiedStudent, verifiedTeacher, returnItems.length, photoPreview]);
 
     const loadActiveLoans = async () => {
-        if (!verifiedStudent) return;
+        if (!verifiedStudent && !verifiedTeacher) return;
 
         setIsLoadingLoans(true);
         try {
-            const response = await axios.get(`/tool-loans/active-loans/${verifiedStudent.id}`);
+            let response;
+            if (verifiedStudent) {
+                response = await axios.get(`/tool-loans/active-loans/student/${verifiedStudent.id}`);
+            } else if (verifiedTeacher) {
+                response = await axios.get(`/tool-loans/active-loans/teacher/${verifiedTeacher.id}`);
+            } else {
+                return;
+            }
+
             if (response.data.success) {
                 const loans = response.data.loans;
                 setActiveLoans(loans);
@@ -96,35 +105,45 @@ export default function Return() {
         }
     };
 
-    const handleVerifyStudent = async (nisToVerify?: string) => {
-        const nisValue = nisToVerify || nis.trim();
-        if (!nisValue) {
-            setStudentVerificationError('Masukkan NIS terlebih dahulu');
+    const handleVerifyBorrower = async (codeToVerify?: string) => {
+        const codeValue = codeToVerify || code.trim();
+        if (!codeValue) {
+            setBorrowerVerificationError('Masukkan NIS atau NIP terlebih dahulu');
             return;
         }
 
-        setIsVerifyingStudent(true);
-        setStudentVerificationError('');
+        setIsVerifyingBorrower(true);
+        setBorrowerVerificationError('');
 
         try {
-            const response = await axios.post('/tool-loans/verify-borrower', { code: nisValue });
-            if (response.data.success && response.data.type === 'student') {
-                setVerifiedStudent(response.data.student);
-                setNis(nisValue);
+            const response = await axios.post('/tool-loans/verify-borrower', { code: codeValue });
+            if (response.data.success) {
+                if (response.data.type === 'student') {
+                    setVerifiedStudent(response.data.student);
+                    setVerifiedTeacher(null);
+                    setCode(codeValue);
+                } else if (response.data.type === 'teacher') {
+                    setVerifiedTeacher(response.data.teacher);
+                    setVerifiedStudent(null);
+                    setCode(codeValue);
+                } else {
+                    setBorrowerVerificationError('Data yang ditemukan bukan siswa atau guru');
+                }
             } else {
-                setStudentVerificationError('Data yang ditemukan bukan siswa');
+                setBorrowerVerificationError('Peminjam tidak ditemukan');
             }
         } catch (error: unknown) {
-            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Siswa tidak ditemukan';
-            setStudentVerificationError(errorMessage);
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Peminjam tidak ditemukan';
+            setBorrowerVerificationError(errorMessage);
             setVerifiedStudent(null);
+            setVerifiedTeacher(null);
         } finally {
-            setIsVerifyingStudent(false);
+            setIsVerifyingBorrower(false);
         }
     };
 
     const handleQRScanSuccess = (decodedText: string) => {
-        handleVerifyStudent(decodedText);
+        handleVerifyBorrower(decodedText);
     };
 
     const handleQRScanError = (error: string) => {
@@ -150,7 +169,7 @@ export default function Return() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!verifiedStudent || returnItems.length === 0 || !returnPhoto) {
+        if ((!verifiedStudent && !verifiedTeacher) || returnItems.length === 0 || !returnPhoto) {
             toast.error('Pastikan semua data sudah lengkap');
             return;
         }
@@ -203,14 +222,14 @@ export default function Return() {
                         <div>
                             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Pengembalian Alat</h1>
                             <p className="text-muted-foreground text-sm sm:text-base mt-1">
-                                Scan QR code untuk memverifikasi siswa dan kembalikan semua alat yang dipinjam
+                                Scan QR code untuk memverifikasi siswa atau guru dan kembalikan semua alat yang dipinjam
                             </p>
                         </div>
                     </div>
 
 
-                    {/* Verify Student */}
-                    {!verifiedStudent && (
+                    {/* Verify Borrower */}
+                    {!verifiedStudent && !verifiedTeacher && (
                         <Card className="border-2">
                             <CardContent className="space-y-6 pt-6">
                                 <QRScanner
@@ -221,9 +240,9 @@ export default function Return() {
                                     inline={true}
                                 />
 
-                                {studentVerificationError && (
+                                {borrowerVerificationError && (
                                     <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm text-center">
-                                        {studentVerificationError}
+                                        {borrowerVerificationError}
                                     </div>
                                 )}
                             </CardContent>
@@ -231,16 +250,22 @@ export default function Return() {
                     )}
 
                     {/* Return Form - All in One */}
-                    {verifiedStudent && (
+                    {(verifiedStudent || verifiedTeacher) && (
                         <form onSubmit={handleSubmit}>
                             <Card className="border-2">
                                 <CardContent className="space-y-6 pt-6">
-                                    {/* Student Info */}
+                                    {/* Borrower Info */}
                                     <div className="p-4 bg-muted/50 rounded-lg border">
                                         <div className="text-center space-y-1">
-                                            <p className="text-sm font-medium text-muted-foreground">Siswa Terverifikasi</p>
-                                            <p className="font-semibold">{verifiedStudent.name}</p>
-                                            <p className="text-xs text-muted-foreground">NIS: {verifiedStudent.nis}</p>
+                                            <p className="text-sm font-medium text-muted-foreground">
+                                                {verifiedStudent ? 'Siswa Terverifikasi' : 'Guru Terverifikasi'}
+                                            </p>
+                                            <p className="font-semibold">
+                                                {verifiedStudent ? verifiedStudent.name : (verifiedTeacher?.name || '')}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {verifiedStudent ? `NIS: ${verifiedStudent.nis}` : ''}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -364,6 +389,7 @@ export default function Return() {
                                                     variant="outline"
                                                     onClick={() => {
                                                         setVerifiedStudent(null);
+                                                        setVerifiedTeacher(null);
                                                         setActiveLoans([]);
                                                         setReturnItems([]);
                                                         setReturnPhoto(null);
@@ -372,7 +398,7 @@ export default function Return() {
                                                     }}
                                                     className="flex-1"
                                                 >
-                                                    Ganti Siswa
+                                                    Ganti Peminjam
                                                 </Button>
                                                 <Button
                                                     type="submit"

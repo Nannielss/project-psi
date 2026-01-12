@@ -184,11 +184,11 @@ export default function Borrow() {
                     setPendingStudent(response.data.student);
                     setStudentActiveLoans(response.data.active_loans || []);
                     setNis(codeValue);
-                    
+
                     // Check if student has active loans
                     if (response.data.has_active_loan) {
                         const toolNames = response.data.active_loans
-                            .map((loan: { tool_name: string; unit_code: string }) => 
+                            .map((loan: { tool_name: string; unit_code: string }) =>
                                 `${loan.tool_name} (${loan.unit_code})`
                             )
                             .join(', ');
@@ -203,7 +203,7 @@ export default function Borrow() {
                         setQrScannerKey(prev => prev + 1);
                         return;
                     }
-                    
+
                     setIsConfirmStudentOpen(true);
                 } else if (response.data.type === 'teacher') {
                     setPendingTeacher(response.data.teacher);
@@ -299,7 +299,7 @@ export default function Borrow() {
 
     const handleConfirmStudent = () => {
         if (!pendingStudent) return;
-        
+
         // Double check: prevent confirmation if student has active loans
         if (studentActiveLoans.length > 0) {
             const toolNames = studentActiveLoans
@@ -311,7 +311,7 @@ export default function Borrow() {
             setQrScannerKey(prev => prev + 1);
             return;
         }
-        
+
         setVerifiedStudent(pendingStudent);
         setPendingStudent(null);
         setStudentActiveLoans([]);
@@ -538,7 +538,7 @@ export default function Borrow() {
                     results.push({ success: true, tool: tool.toolUnit.unit_code });
                 } catch (error: unknown) {
                     const err = error as { response?: { data?: { message?: string; errors?: { student_id?: string[] } } }; message?: string };
-                    const errorMessage = err.response?.data?.message 
+                    const errorMessage = err.response?.data?.message
                         || err.response?.data?.errors?.student_id?.[0]
                         || err.message;
                     results.push({ success: false, tool: tool.toolUnit.unit_code, error: errorMessage });
@@ -586,42 +586,6 @@ export default function Borrow() {
                             </Button>
                         </Link>
                         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Peminjaman Alat</h1>
-                    </div>
-
-                    {/* Step Indicator */}
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                    step >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                                }`}
-                            >
-                                {step > 1 ? <CheckCircle2 className="h-4 w-4" /> : '1'}
-                            </div>
-                            <span className="font-medium">Verifikasi Siswa</span>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                    step >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                                }`}
-                            >
-                                {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
-                            </div>
-                            <span className="font-medium">Tambah Alat</span>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                                    step >= 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted'
-                                }`}
-                            >
-                                3
-                            </div>
-                            <span className="font-medium">Foto & Submit</span>
-                        </div>
                     </div>
 
                     {/* Step 1: Verify Student or Teacher */}

@@ -555,6 +555,40 @@ class ToolLoanController extends Controller
     }
 
     /**
+     * Get all active loans for a teacher (for return page).
+     */
+    public function getActiveLoansByTeacher($teacherId)
+    {
+        $teacher = Teacher::find($teacherId);
+
+        if (!$teacher) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guru tidak ditemukan.',
+            ], 404);
+        }
+
+        $activeLoans = ToolLoan::where('borrower_teacher_id', $teacherId)
+            ->where('status', 'borrowed')
+            ->with(['toolUnit.tool'])
+            ->orderBy('borrowed_at', 'asc')
+            ->get()
+            ->map(function ($loan) {
+                $loanData = $loan->toArray();
+                // Remove NIP if borrowerTeacher exists (security: hide sensitive data from public route)
+                if (isset($loanData['borrower_teacher']) && isset($loanData['borrower_teacher']['nip'])) {
+                    unset($loanData['borrower_teacher']['nip']);
+                }
+                return $loanData;
+            });
+
+        return response()->json([
+            'success' => true,
+            'loans' => $activeLoans,
+        ]);
+    }
+
+    /**
      * Display dashboard with tool loans statistics.
      */
     public function dashboard(Request $request): Response

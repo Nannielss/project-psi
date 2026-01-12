@@ -41,7 +41,8 @@ Route::get('tool-loans/teachers', [ToolLoanController::class, 'getTeachers'])->n
 Route::get('tool-loans/search-tools', [ToolLoanController::class, 'searchTools'])->name('tool-loans.search-tools');
 Route::get('tool-loans/tools-catalog', [ToolLoanController::class, 'getToolsCatalog'])->name('tool-loans.tools-catalog');
 Route::get('tool-loans/tools/{toolId}/available-units', [ToolLoanController::class, 'getAvailableUnits'])->name('tool-loans.available-units');
-Route::get('tool-loans/active-loans/{studentId}', [ToolLoanController::class, 'getActiveLoansByStudent'])->name('tool-loans.active-loans');
+Route::get('tool-loans/active-loans/student/{studentId}', [ToolLoanController::class, 'getActiveLoansByStudent'])->name('tool-loans.active-loans.student');
+Route::get('tool-loans/active-loans/teacher/{teacherId}', [ToolLoanController::class, 'getActiveLoansByTeacher'])->name('tool-loans.active-loans.teacher');
 Route::post('tool-loans/verify-borrower', [ToolLoanController::class, 'verifyBorrower'])
     ->middleware('throttle:verify-borrower')
     ->name('tool-loans.verify-borrower');

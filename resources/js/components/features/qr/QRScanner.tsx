@@ -50,9 +50,12 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                 { facingMode: 'environment' }, // Use back camera
                 {
                     fps: 10,
-                    qrbox: { width: 320, height: 320 },
-                    aspectRatio: 1.0,
-                    disableFlip: false,
+                    qrbox: (vw) => {
+                        const size = Math.min(320, Math.floor(vw * 0.7));
+                        return { width: size, height: size };
+                    },
+                    disableFlip: true,
+                    aspectRatio: 16 / 9,
                 },
                 (decodedText) => {
                     // Success callback
