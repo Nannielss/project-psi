@@ -54,7 +54,7 @@ export function QRScanner({ open, onClose, onScanSuccess, onScanError, inline = 
                         const size = Math.min(320, Math.floor(vw * 0.7));
                         return { width: size, height: size };
                     },
-                    disableFlip: true,
+                    disableFlip: false,
                     aspectRatio: 16 / 9,
                 },
                 (decodedText) => {
