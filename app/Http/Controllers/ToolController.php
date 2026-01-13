@@ -19,13 +19,19 @@ class ToolController extends Controller
 {
     /**
      * Extract initial unit count from tool code.
-     * Format: WK.09.03.131.1.2025 -> extract "1" (5th segment)
+     * Format: WK.09.03.131.1.2025 -> extract "1" (second to last segment)
+     * Format: WK.PK.09.03.78.4.2020 -> extract "4" (second to last segment)
+     * Format: WK-DF.09.03.78.4.2020 -> extract "4" (second to last segment)
+     * 
+     * The unit count is always the second-to-last segment (before the year).
      */
     private function extractUnitCountFromCode(string $code): int
     {
         $parts = explode('.', $code);
-        if (count($parts) >= 5) {
-            $unitCount = (int) $parts[4]; // Index 4 is the 5th segment
+        // Need at least 2 segments (unit count and year)
+        if (count($parts) >= 2) {
+            // Unit count is the second-to-last segment (before year)
+            $unitCount = (int) $parts[count($parts) - 2];
             return $unitCount > 0 ? $unitCount : 1; // Default to 1 if invalid
         }
         return 1; // Default to 1 if format is invalid
