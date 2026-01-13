@@ -312,6 +312,9 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                                     <div className="font-medium">
                                                                         {loan.student.name}
                                                                     </div>
+                                                                    <div className='text-sm text-muted-foreground'>
+                                                                        Kelas: {loan.student.class || '-'}
+                                                                    </div>
                                                                     <div className="text-sm text-muted-foreground">
                                                                         NIS: {loan.student.nis}
                                                                     </div>
@@ -421,11 +424,10 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                     <Link
                                                         key={index}
                                                         href={link.url}
-                                                        className={`px-3 py-2 text-sm rounded-md border ${
-                                                            link.active
+                                                        className={`px-3 py-2 text-sm rounded-md border ${link.active
                                                                 ? 'bg-primary text-primary-foreground'
                                                                 : 'hover:bg-accent'
-                                                        }`}
+                                                            }`}
                                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                                     />
                                                 );
