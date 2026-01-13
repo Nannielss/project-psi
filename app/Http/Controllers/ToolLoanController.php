@@ -10,6 +10,7 @@ use App\Models\Tool;
 use App\Models\ToolLoan;
 use App\Models\ToolUnit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -390,6 +391,180 @@ class ToolLoanController extends Controller
 
         return redirect()->route('tool-loans.borrow')
             ->with('success', 'Peminjaman alat berhasil dicatat.');
+    }
+
+    /**
+     * Store multiple tool loans in batch (borrow multiple tools at once).
+     */
+    public function storeBorrowBatch(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => 'nullable|exists:students,id',
+            'borrower_teacher_id' => 'nullable|exists:teachers,id',
+            'tool_unit_ids' => 'required|array|min:1',
+            'tool_unit_ids.*' => 'required|exists:tool_units,id',
+            'borrow_photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'teacher_id' => 'nullable|exists:teachers,id',
+            'subject_id' => 'nullable|exists:subjects,id',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Validate that either student_id or borrower_teacher_id is provided
+        if (empty($validated['student_id']) && empty($validated['borrower_teacher_id'])) {
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Siswa atau guru peminjam harus dipilih.',
+                    'errors' => ['student_id' => ['Siswa atau guru peminjam harus dipilih.']],
+                ], 422);
+            }
+            return redirect()->back()
+                ->withErrors(['student_id' => 'Siswa atau guru peminjam harus dipilih.'])
+                ->withInput();
+        }
+
+        // Check if student has active loans (must return first before borrowing again)
+        // This check happens ONCE before processing any items
+        if (!empty($validated['student_id'])) {
+            $student = Student::findOrFail($validated['student_id']);
+            if ($student->hasActiveLoan()) {
+                $activeLoans = ToolLoan::where('student_id', $validated['student_id'])
+                    ->where('status', 'borrowed')
+                    ->with('toolUnit.tool')
+                    ->get();
+                
+                $toolNames = $activeLoans->map(function ($loan) {
+                    return $loan->toolUnit->tool->name . ' (' . $loan->toolUnit->unit_code . ')';
+                })->join(', ');
+                
+                $errorMessage = 'Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ' . $toolNames;
+                
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMessage,
+                        'errors' => ['student_id' => [$errorMessage]],
+                    ], 422);
+                }
+                
+                return redirect()->back()
+                    ->withErrors(['student_id' => $errorMessage])
+                    ->withInput();
+            }
+        }
+
+        // Handle photo upload (store privately)
+        $photoPath = $request->file('borrow_photo')->store('tool-loans/borrow');
+
+        // Validate all tool units before creating any loans
+        $toolUnitIds = $validated['tool_unit_ids'];
+        $toolUnits = ToolUnit::whereIn('id', $toolUnitIds)->get();
+        
+        if ($toolUnits->count() !== count($toolUnitIds)) {
+            $errorMessage = 'Beberapa alat tidak ditemukan.';
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'errors' => ['tool_unit_ids' => [$errorMessage]],
+                ], 422);
+            }
+            return redirect()->back()
+                ->withErrors(['tool_unit_ids' => $errorMessage])
+                ->withInput();
+        }
+
+        // Check availability and condition for all tool units
+        $errors = [];
+        foreach ($toolUnits as $toolUnit) {
+            if ($toolUnit->isBorrowed()) {
+                $errors[] = 'Alat ' . $toolUnit->unit_code . ' sedang dipinjam oleh siswa lain.';
+            }
+            if ($toolUnit->condition !== 'good') {
+                $conditionMessages = [
+                    'damaged' => 'rusak',
+                    'scrapped' => 'rusak total',
+                ];
+                $conditionMessage = $conditionMessages[$toolUnit->condition] ?? $toolUnit->condition;
+                $errors[] = 'Alat ' . $toolUnit->unit_code . ' tidak dapat dipinjam karena kondisinya ' . $conditionMessage . '.';
+            }
+        }
+
+        if (!empty($errors)) {
+            $errorMessage = implode(' ', $errors);
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'errors' => ['tool_unit_ids' => [$errorMessage]],
+                ], 422);
+            }
+            return redirect()->back()
+                ->withErrors(['tool_unit_ids' => $errorMessage])
+                ->withInput();
+        }
+
+        // Create all loans in a database transaction
+        try {
+            DB::beginTransaction();
+
+            $createdLoans = [];
+            foreach ($toolUnits as $toolUnit) {
+                $loanData = [
+                    'tool_unit_id' => $toolUnit->id,
+                    'borrow_photo' => $photoPath,
+                    'borrowed_at' => now(),
+                    'status' => 'borrowed',
+                    'notes' => $validated['notes'] ?? null,
+                ];
+
+                // Add student_id or borrower_teacher_id
+                if (!empty($validated['student_id'])) {
+                    $loanData['student_id'] = $validated['student_id'];
+                }
+                if (!empty($validated['borrower_teacher_id'])) {
+                    $loanData['borrower_teacher_id'] = $validated['borrower_teacher_id'];
+                }
+
+                // Only add teacher_id and subject_id if they have values
+                if (!empty($validated['teacher_id'])) {
+                    $loanData['teacher_id'] = $validated['teacher_id'];
+                }
+                if (!empty($validated['subject_id'])) {
+                    $loanData['subject_id'] = $validated['subject_id'];
+                }
+
+                $loan = ToolLoan::create($loanData);
+                $createdLoans[] = $loan;
+            }
+
+            DB::commit();
+
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => count($createdLoans) . ' alat berhasil dipinjam.',
+                    'loans' => $createdLoans,
+                ]);
+            }
+
+            return redirect()->route('tool-loans.borrow')
+                ->with('success', count($createdLoans) . ' alat berhasil dipinjam.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            $errorMessage = 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage();
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 500);
+            }
+            
+            return redirect()->back()
+                ->withErrors(['error' => $errorMessage])
+                ->withInput();
+        }
     }
 
     /**

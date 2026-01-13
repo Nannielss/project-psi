@@ -49,6 +49,7 @@ Route::post('tool-loans/verify-borrower', [ToolLoanController::class, 'verifyBor
 Route::post('tool-loans/verify-tool', [ToolLoanController::class, 'verifyTool'])->name('tool-loans.verify-tool');
 Route::post('tool-loans/get-active-loan-by-tool', [ToolLoanController::class, 'getActiveLoanByTool'])->name('tool-loans.get-active-loan-by-tool');
 Route::post('tool-loans/borrow', [ToolLoanController::class, 'storeBorrow'])->name('tool-loans.store-borrow');
+Route::post('tool-loans/borrow-batch', [ToolLoanController::class, 'storeBorrowBatch'])->name('tool-loans.store-borrow-batch');
 Route::post('tool-loans/return', [ToolLoanController::class, 'storeReturn'])->name('tool-loans.store-return');
 
 Route::middleware('auth')->group(function () {

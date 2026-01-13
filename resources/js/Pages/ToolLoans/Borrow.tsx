@@ -509,64 +509,90 @@ export default function Borrow() {
         setIsSubmitting(true);
 
         try {
-            const results = [];
-            // Submit all tools sequentially
-            for (let i = 0; i < selectedTools.length; i++) {
-                const tool = selectedTools[i];
+            // Use batch endpoint if multiple tools, otherwise use single endpoint
+            if (selectedTools.length > 1) {
+                // Batch borrow: submit all tools at once
+                const formData = new FormData();
+
+                // Determine borrower: teacher takes priority if both exist
+                if (verifiedTeacher) {
+                    formData.append('borrower_teacher_id', verifiedTeacher.id.toString());
+                } else if (verifiedStudent) {
+                    formData.append('student_id', verifiedStudent.id.toString());
+                }
+
+                // Add all tool_unit_ids as array
+                selectedTools.forEach((tool) => {
+                    formData.append('tool_unit_ids[]', tool.toolUnit.id.toString());
+                });
+
+                formData.append('borrow_photo', studentPhoto);
+                if (selectedTeacherId) {
+                    formData.append('teacher_id', selectedTeacherId);
+                }
+                if (selectedSubjectId) {
+                    formData.append('subject_id', selectedSubjectId);
+                }
+
                 try {
-                    const formData = new FormData();
+                    const response = await axios.post('/tool-loans/borrow-batch', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
 
-                    // Determine borrower: teacher takes priority if both exist
-                    if (verifiedTeacher) {
-                        formData.append('borrower_teacher_id', verifiedTeacher.id.toString());
-                    } else if (verifiedStudent) {
-                        formData.append('student_id', verifiedStudent.id.toString());
+                    if (response.data.success) {
+                        toast.success(response.data.message || `${selectedTools.length} alat berhasil dipinjam`);
+                        router.visit('/tool-loans');
+                    } else {
+                        toast.error(response.data.message || 'Gagal meminjam alat');
                     }
+                } catch (error: unknown) {
+                    const err = error as { response?: { data?: { message?: string; errors?: { student_id?: string[]; tool_unit_ids?: string[] } } }; message?: string };
+                    const errorMessage = err.response?.data?.message
+                        || err.response?.data?.errors?.student_id?.[0]
+                        || err.response?.data?.errors?.tool_unit_ids?.[0]
+                        || err.message
+                        || 'Gagal meminjam alat';
+                    toast.error(errorMessage);
+                }
+            } else {
+                // Single borrow: use original endpoint for single item
+                const tool = selectedTools[0];
+                const formData = new FormData();
 
-                    formData.append('tool_unit_id', tool.toolUnit.id.toString());
-                    formData.append('borrow_photo', studentPhoto);
-                    if (selectedTeacherId) {
-                        formData.append('teacher_id', selectedTeacherId);
-                    }
-                    if (selectedSubjectId) {
-                        formData.append('subject_id', selectedSubjectId);
-                    }
+                // Determine borrower: teacher takes priority if both exist
+                if (verifiedTeacher) {
+                    formData.append('borrower_teacher_id', verifiedTeacher.id.toString());
+                } else if (verifiedStudent) {
+                    formData.append('student_id', verifiedStudent.id.toString());
+                }
 
+                formData.append('tool_unit_id', tool.toolUnit.id.toString());
+                formData.append('borrow_photo', studentPhoto);
+                if (selectedTeacherId) {
+                    formData.append('teacher_id', selectedTeacherId);
+                }
+                if (selectedSubjectId) {
+                    formData.append('subject_id', selectedSubjectId);
+                }
+
+                try {
                     await axios.post('/tool-loans/borrow', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' },
                     });
-                    results.push({ success: true, tool: tool.toolUnit.unit_code });
+                    toast.success('Peminjaman alat berhasil dicatat');
+                    router.visit('/tool-loans');
                 } catch (error: unknown) {
                     const err = error as { response?: { data?: { message?: string; errors?: { student_id?: string[] } } }; message?: string };
                     const errorMessage = err.response?.data?.message
                         || err.response?.data?.errors?.student_id?.[0]
-                        || err.message;
-                    results.push({ success: false, tool: tool.toolUnit.unit_code, error: errorMessage });
-                    // Show error toast for each failed tool
-                    toast.error(`Gagal meminjam ${tool.toolUnit.unit_code}: ${errorMessage}`);
+                        || err.message
+                        || 'Gagal meminjam alat';
+                    toast.error(errorMessage);
                 }
             }
-
-            const successCount = results.filter((r) => r.success).length;
-            const failedCount = results.filter((r) => !r.success).length;
-
-            if (successCount > 0) {
-                toast.success(`${successCount} alat berhasil dipinjam`);
-            }
-            if (failedCount > 0) {
-                toast.error(`${failedCount} alat gagal dipinjam`);
-            }
-
-            // Redirect to tool-loans page if all successful
-            if (failedCount === 0) {
-                router.visit('/tool-loans');
-            } else {
-                // Remove successfully submitted tools
-                const failedTools = results.filter((r) => !r.success).map((r) => r.tool);
-                setSelectedTools(selectedTools.filter((t) => failedTools.includes(t.toolUnit.unit_code)));
-            }
-        } catch {
-            toast.error('Terjadi kesalahan saat menyimpan data');
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            toast.error(err.message || 'Terjadi kesalahan saat menyimpan data');
         } finally {
             setIsSubmitting(false);
         }
