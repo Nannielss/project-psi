@@ -952,7 +952,7 @@ export default function Borrow() {
                                         </Button>
                                         <Button
                                             type="submit"
-                                            disabled={isSubmitting || !studentPhoto}
+                                            disabled={isSubmitting || !studentPhoto || !selectedSubjectId || !selectedTeacherId || selectedTools.length === 0}
                                             className="flex-1"
                                             size="lg"
                                         >
