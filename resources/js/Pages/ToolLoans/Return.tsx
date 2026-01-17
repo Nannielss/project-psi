@@ -402,18 +402,12 @@ export default function Return() {
                                                 </Button>
                                                 <Button
                                                     type="submit"
-                                                    disabled={isSubmitting || !returnPhoto || returnItems.length === 0}
-                                                    onClick={(e) => {
-                                                        // Validate that all damaged items have notes
-                                                        const damagedItems = returnItems.filter(item => item.condition === 'damaged');
-                                                        const hasEmptyNotes = damagedItems.some(item => !item.notes.trim());
-
-                                                        if (hasEmptyNotes) {
-                                                            e.preventDefault();
-                                                            toast.error('Alat yang rusak harus memiliki catatan kerusakan');
-                                                            return;
-                                                        }
-                                                    }}
+                                                    disabled={
+                                                        isSubmitting ||
+                                                        !returnPhoto ||
+                                                        returnItems.length === 0 ||
+                                                        returnItems.some(item => item.condition === 'damaged' && !item.notes.trim())
+                                                    }
                                                     className="flex-1"
                                                     size="lg"
                                                 >
