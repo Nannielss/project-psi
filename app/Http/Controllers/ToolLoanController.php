@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DeviceLocation;
 use App\Models\Material;
 use App\Models\MaterialPickup;
 use App\Models\Student;
@@ -9,6 +10,7 @@ use App\Models\Teacher;
 use App\Models\Tool;
 use App\Models\ToolLoan;
 use App\Models\ToolUnit;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,10 +25,94 @@ class ToolLoanController extends Controller
 {
     /**
      * Show the landing page to choose between borrow or return.
+     * Requires device location to be set in session.
      */
-    public function indexPage(): Response
+    public function indexPage(): Response|RedirectResponse
     {
-        return Inertia::render('ToolLoans/IndexPage');
+        // Check if device location is set in session
+        $deviceLocationId = session('device_location_id');
+        
+        if (!$deviceLocationId) {
+            return redirect()->route('tool-loans.location-login');
+        }
+
+        // Verify location still exists and is active
+        $deviceLocation = DeviceLocation::find($deviceLocationId);
+        if (!$deviceLocation || !$deviceLocation->is_active) {
+            session()->forget(['device_location_id', 'device_location_name']);
+            return redirect()->route('tool-loans.location-login')
+                ->with('error', 'Lokasi device tidak ditemukan atau tidak aktif.');
+        }
+
+        return Inertia::render('ToolLoans/IndexPage', [
+            'deviceLocation' => [
+                'id' => $deviceLocation->id,
+                'name' => $deviceLocation->name,
+            ],
+        ]);
+    }
+
+    /**
+     * Show the location login page.
+     */
+    public function locationLoginPage(): Response
+    {
+        // Get all active device locations
+        $locations = DeviceLocation::where('is_active', true)
+            ->orderBy('name')
+            ->select('id', 'name')
+            ->get();
+
+        return Inertia::render('ToolLoans/LocationLogin', [
+            'locations' => $locations,
+        ]);
+    }
+
+    /**
+     * Verify location password and set session.
+     */
+    public function verifyLocationPassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'device_location_id' => 'required|exists:device_locations,id',
+            'password' => 'required|string',
+        ]);
+
+        $deviceLocation = DeviceLocation::findOrFail($validated['device_location_id']);
+
+        // Check if location is active
+        if (!$deviceLocation->is_active) {
+            return redirect()->back()
+                ->withErrors(['password' => 'Lokasi device tidak aktif.'])
+                ->withInput();
+        }
+
+        // Verify password
+        if (!$deviceLocation->verifyPassword($validated['password'])) {
+            return redirect()->back()
+                ->withErrors(['password' => 'Password salah.'])
+                ->withInput();
+        }
+
+        // Set session
+        session([
+            'device_location_id' => $deviceLocation->id,
+            'device_location_name' => $deviceLocation->name,
+        ]);
+
+        return redirect()->route('tool-loans.index-page')
+            ->with('success', 'Berhasil masuk sebagai ' . $deviceLocation->name);
+    }
+
+    /**
+     * Logout from device location.
+     */
+    public function locationLogout(): RedirectResponse
+    {
+        session()->forget(['device_location_id', 'device_location_name']);
+
+        return redirect()->route('tool-loans.location-login')
+            ->with('success', 'Berhasil logout dari lokasi device.');
     }
 
     /**
@@ -40,9 +126,29 @@ class ToolLoanController extends Controller
     /**
      * Show the form for returning a tool (public page).
      */
-    public function returnPage(): Response
+    public function returnPage(): Response|RedirectResponse
     {
-        return Inertia::render('ToolLoans/Return');
+        // Check if device location is set in session
+        $deviceLocationId = session('device_location_id');
+        
+        if (!$deviceLocationId) {
+            return redirect()->route('tool-loans.location-login');
+        }
+
+        // Verify location still exists and is active
+        $deviceLocation = DeviceLocation::find($deviceLocationId);
+        if (!$deviceLocation || !$deviceLocation->is_active) {
+            session()->forget(['device_location_id', 'device_location_name']);
+            return redirect()->route('tool-loans.location-login')
+                ->with('error', 'Lokasi device tidak ditemukan atau tidak aktif.');
+        }
+
+        return Inertia::render('ToolLoans/Return', [
+            'deviceLocation' => [
+                'id' => $deviceLocation->id,
+                'name' => $deviceLocation->name,
+            ],
+        ]);
     }
 
     /**
@@ -60,10 +166,11 @@ class ToolLoanController extends Controller
         $student = Student::where('nis', $code)->with('major')->first();
 
         if ($student) {
-            // Check if student has active loans (must return first before borrowing again)
+            // Check if student has active loans
             $hasActiveLoan = $student->hasActiveLoan();
+            $canBorrowToday = $student->canBorrowToday();
             $activeLoans = [];
-            
+
             if ($hasActiveLoan) {
                 $activeLoans = ToolLoan::where('student_id', $student->id)
                     ->where('status', 'borrowed')
@@ -78,13 +185,14 @@ class ToolLoanController extends Controller
                         ];
                     });
             }
-            
+
             return response()->json([
                 'success' => true,
                 'type' => 'student',
                 'student' => $student,
                 'teacher' => null,
                 'has_active_loan' => $hasActiveLoan,
+                'can_borrow_today' => $canBorrowToday,
                 'active_loans' => $activeLoans,
             ]);
         }
@@ -95,7 +203,7 @@ class ToolLoanController extends Controller
         if ($teacher) {
             // Hide NIP from response for privacy
             $teacher->makeHidden('nip');
-            
+
             return response()->json([
                 'success' => true,
                 'type' => 'teacher',
@@ -145,7 +253,7 @@ class ToolLoanController extends Controller
                 'scrapped' => 'rusak total',
             ];
             $conditionMessage = $conditionMessages[$toolUnit->condition] ?? $toolUnit->condition;
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Alat tidak dapat dipinjam karena kondisinya ' . $conditionMessage . '.',
@@ -164,10 +272,10 @@ class ToolLoanController extends Controller
     public function getTeachers()
     {
         $teachers = Teacher::with('subjects')
-            ->select('id', 'name') 
+            ->select('id', 'name')
             ->orderBy('name')
             ->get()
-            ->makeHidden('nip'); 
+            ->makeHidden('nip');
 
         return response()->json([
             'success' => true,
@@ -309,21 +417,25 @@ class ToolLoanController extends Controller
                 ->withInput();
         }
 
-        // Check if student has active loans (must return first before borrowing again)
+        // Check if student can borrow (same-day borrowing allowed)
         if (!empty($validated['student_id'])) {
             $student = Student::findOrFail($validated['student_id']);
-            if ($student->hasActiveLoan()) {
+            $hasActiveLoan = $student->hasActiveLoan();
+            $canBorrowToday = $student->canBorrowToday();
+
+            // Block if has active loan AND cannot borrow today (loans from previous day)
+            if ($hasActiveLoan && !$canBorrowToday) {
                 $activeLoans = ToolLoan::where('student_id', $validated['student_id'])
                     ->where('status', 'borrowed')
                     ->with('toolUnit.tool')
                     ->get();
-                
+
                 $toolNames = $activeLoans->map(function ($loan) {
                     return $loan->toolUnit->tool->name . ' (' . $loan->toolUnit->unit_code . ')';
                 })->join(', ');
-                
+
                 $errorMessage = 'Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ' . $toolNames;
-                
+
                 // Return JSON response for axios requests
                 if ($request->expectsJson() || $request->wantsJson()) {
                     return response()->json([
@@ -332,7 +444,7 @@ class ToolLoanController extends Controller
                         'errors' => ['student_id' => [$errorMessage]],
                     ], 422);
                 }
-                
+
                 return redirect()->back()
                     ->withErrors(['student_id' => $errorMessage])
                     ->withInput();
@@ -353,7 +465,7 @@ class ToolLoanController extends Controller
                 'scrapped' => 'rusak total',
             ];
             $conditionMessage = $conditionMessages[$toolUnit->condition] ?? $toolUnit->condition;
-            
+
             return redirect()->back()
                 ->withErrors(['tool_unit_id' => 'Alat tidak dapat dipinjam karena kondisinya ' . $conditionMessage . '.'])
                 ->withInput();
@@ -370,6 +482,12 @@ class ToolLoanController extends Controller
             'status' => 'borrowed',
             'notes' => $validated['notes'] ?? null,
         ];
+
+        // Add device_location_id from session if available
+        $deviceLocationId = session('device_location_id');
+        if ($deviceLocationId) {
+            $loanData['device_location_id'] = $deviceLocationId;
+        }
 
         // Add student_id or borrower_teacher_id
         if (!empty($validated['student_id'])) {
@@ -423,22 +541,26 @@ class ToolLoanController extends Controller
                 ->withInput();
         }
 
-        // Check if student has active loans (must return first before borrowing again)
+        // Check if student can borrow (same-day borrowing allowed)
         // This check happens ONCE before processing any items
         if (!empty($validated['student_id'])) {
             $student = Student::findOrFail($validated['student_id']);
-            if ($student->hasActiveLoan()) {
+            $hasActiveLoan = $student->hasActiveLoan();
+            $canBorrowToday = $student->canBorrowToday();
+
+            // Block if has active loan AND cannot borrow today (loans from previous day)
+            if ($hasActiveLoan && !$canBorrowToday) {
                 $activeLoans = ToolLoan::where('student_id', $validated['student_id'])
                     ->where('status', 'borrowed')
                     ->with('toolUnit.tool')
                     ->get();
-                
+
                 $toolNames = $activeLoans->map(function ($loan) {
                     return $loan->toolUnit->tool->name . ' (' . $loan->toolUnit->unit_code . ')';
                 })->join(', ');
-                
+
                 $errorMessage = 'Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ' . $toolNames;
-                
+
                 if ($request->expectsJson() || $request->wantsJson()) {
                     return response()->json([
                         'success' => false,
@@ -446,7 +568,7 @@ class ToolLoanController extends Controller
                         'errors' => ['student_id' => [$errorMessage]],
                     ], 422);
                 }
-                
+
                 return redirect()->back()
                     ->withErrors(['student_id' => $errorMessage])
                     ->withInput();
@@ -459,7 +581,7 @@ class ToolLoanController extends Controller
         // Validate all tool units before creating any loans
         $toolUnitIds = $validated['tool_unit_ids'];
         $toolUnits = ToolUnit::whereIn('id', $toolUnitIds)->get();
-        
+
         if ($toolUnits->count() !== count($toolUnitIds)) {
             $errorMessage = 'Beberapa alat tidak ditemukan.';
             if ($request->expectsJson() || $request->wantsJson()) {
@@ -508,6 +630,9 @@ class ToolLoanController extends Controller
         try {
             DB::beginTransaction();
 
+            // Get device_location_id from session if available
+            $deviceLocationId = session('device_location_id');
+
             $createdLoans = [];
             foreach ($toolUnits as $toolUnit) {
                 $loanData = [
@@ -517,6 +642,11 @@ class ToolLoanController extends Controller
                     'status' => 'borrowed',
                     'notes' => $validated['notes'] ?? null,
                 ];
+
+                // Add device_location_id from session if available
+                if ($deviceLocationId) {
+                    $loanData['device_location_id'] = $deviceLocationId;
+                }
 
                 // Add student_id or borrower_teacher_id
                 if (!empty($validated['student_id'])) {
@@ -552,7 +682,7 @@ class ToolLoanController extends Controller
                 ->with('success', count($createdLoans) . ' alat berhasil dipinjam.');
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             $errorMessage = 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage();
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
@@ -560,7 +690,7 @@ class ToolLoanController extends Controller
                     'message' => $errorMessage,
                 ], 500);
             }
-            
+
             return redirect()->back()
                 ->withErrors(['error' => $errorMessage])
                 ->withInput();
@@ -600,6 +730,7 @@ class ToolLoanController extends Controller
 
         $successCount = 0;
         $errors = [];
+        $locationMismatchErrors = []; // Store location mismatch errors separately
 
         foreach ($returns as $returnData) {
             try {
@@ -607,11 +738,26 @@ class ToolLoanController extends Controller
                 $toolUnit = ToolUnit::findOrFail($returnData['tool_unit_id']);
                 $activeLoan = ToolLoan::where('tool_unit_id', $toolUnit->id)
                     ->where('status', 'borrowed')
+                    ->with('deviceLocation')
                     ->first();
 
                 if (!$activeLoan) {
                     $errors[] = "Alat dengan kode {$toolUnit->unit_code} tidak sedang dipinjam.";
                     continue;
+                }
+
+                // Validate device location (if loan has device_location_id)
+                if ($activeLoan->device_location_id) {
+                    $currentLocationId = session('device_location_id');
+                    if (!$currentLocationId || $currentLocationId != $activeLoan->device_location_id) {
+                        $loanLocation = $activeLoan->deviceLocation;
+                        $locationName = $loanLocation ? $loanLocation->name : 'lokasi yang berbeda';
+                        $locationMismatchErrors[] = [
+                            'code' => $toolUnit->unit_code,
+                            'location' => $locationName,
+                        ];
+                        continue;
+                    }
                 }
 
                 // Update loan record
@@ -632,6 +778,37 @@ class ToolLoanController extends Controller
             } catch (\Exception $e) {
                 $errors[] = "Gagal mengembalikan alat dengan kode {$returnData['tool_unit_id']}: " . $e->getMessage();
             }
+        }
+
+        // Format location mismatch errors more compactly
+        if (count($locationMismatchErrors) > 0) {
+            // Group by location
+            $groupedByLocation = [];
+            foreach ($locationMismatchErrors as $error) {
+                $loc = $error['location'];
+                if (!isset($groupedByLocation[$loc])) {
+                    $groupedByLocation[$loc] = [];
+                }
+                $groupedByLocation[$loc][] = $error['code'];
+            }
+
+            // Build compact error message
+            $locationMessages = [];
+            foreach ($groupedByLocation as $location => $codes) {
+                $count = count($codes);
+                if ($count <= 3) {
+                    // Show all codes if 3 or less
+                    $locationMessages[] = "{$count} alat (" . implode(', ', $codes) . ") harus dikembalikan di {$location}";
+                } else {
+                    // Show first 3 codes + count if more than 3
+                    $shownCodes = array_slice($codes, 0, 3);
+                    $remaining = $count - 3;
+                    $locationMessages[] = "{$count} alat (" . implode(', ', $shownCodes) . ", dan {$remaining} lainnya) harus dikembalikan di {$location}";
+                }
+            }
+
+            $locationErrorMsg = implode('. ', $locationMessages);
+            $errors[] = $locationErrorMsg;
         }
 
         if ($successCount > 0) {
@@ -683,7 +860,7 @@ class ToolLoanController extends Controller
 
         // Hide sensitive data from public route
         $loanData = $activeLoan->load('toolUnit.tool')->toArray();
-        
+
         // Remove NIP if borrowerTeacher exists
         if (isset($loanData['borrower_teacher']) && isset($loanData['borrower_teacher']['nip'])) {
             unset($loanData['borrower_teacher']['nip']);
@@ -711,7 +888,7 @@ class ToolLoanController extends Controller
 
         $activeLoans = ToolLoan::where('student_id', $studentId)
             ->where('status', 'borrowed')
-            ->with(['toolUnit.tool'])
+            ->with(['toolUnit.tool', 'deviceLocation'])
             ->orderBy('borrowed_at', 'asc')
             ->get()
             ->map(function ($loan) {
@@ -723,9 +900,13 @@ class ToolLoanController extends Controller
                 return $loanData;
             });
 
+        // Get current device location from session
+        $currentLocationId = session('device_location_id');
+
         return response()->json([
             'success' => true,
             'loans' => $activeLoans,
+            'current_location_id' => $currentLocationId,
         ]);
     }
 
@@ -745,7 +926,7 @@ class ToolLoanController extends Controller
 
         $activeLoans = ToolLoan::where('borrower_teacher_id', $teacherId)
             ->where('status', 'borrowed')
-            ->with(['toolUnit.tool'])
+            ->with(['toolUnit.tool', 'deviceLocation'])
             ->orderBy('borrowed_at', 'asc')
             ->get()
             ->map(function ($loan) {
@@ -757,9 +938,13 @@ class ToolLoanController extends Controller
                 return $loanData;
             });
 
+        // Get current device location from session
+        $currentLocationId = session('device_location_id');
+
         return response()->json([
             'success' => true,
             'loans' => $activeLoans,
+            'current_location_id' => $currentLocationId,
         ]);
     }
 
@@ -809,7 +994,7 @@ class ToolLoanController extends Controller
                 $borrowerName = $loan->student ? $loan->student->name : ($loan->borrowerTeacher ? $loan->borrowerTeacher->name : '-');
                 $borrowerId = $loan->student ? $loan->student->nis : ($loan->borrowerTeacher ? $loan->borrowerTeacher->nip : '-');
                 $borrowerType = $loan->student ? 'student' : 'teacher';
-                
+
                 return [
                     'id' => $loan->id,
                     'borrower_name' => $borrowerName,
@@ -843,7 +1028,7 @@ class ToolLoanController extends Controller
                 $borrowerName = $loan->student ? $loan->student->name : ($loan->borrowerTeacher ? $loan->borrowerTeacher->name : '-');
                 $borrowerId = $loan->student ? $loan->student->nis : ($loan->borrowerTeacher ? $loan->borrowerTeacher->nip : '-');
                 $borrowerType = $loan->student ? 'student' : 'teacher';
-                
+
                 return [
                     'id' => $loan->id,
                     'borrower_name' => $borrowerName,
@@ -918,7 +1103,7 @@ class ToolLoanController extends Controller
      */
     public function history(Request $request): Response
     {
-        $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'teacher', 'subject', 'toolUnit.tool']);
+        $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'teacher', 'subject', 'toolUnit.tool', 'deviceLocation']);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -969,7 +1154,7 @@ class ToolLoanController extends Controller
     public function exportHistory(Request $request)
     {
         $format = $request->get('format', 'excel'); // 'csv' or 'excel'
-        
+
         $query = ToolLoan::with(['student.major', 'borrowerTeacher', 'toolUnit.tool']);
 
         // Apply same filters as history page
@@ -1039,7 +1224,7 @@ class ToolLoanController extends Controller
             $borrowerName = $loan->student ? ($loan->student->name ?? '') : ($loan->borrowerTeacher ? ($loan->borrowerTeacher->name ?? '') : '');
             $majorName = $loan->student && $loan->student->major ? $loan->student->major->name : '';
             $class = $loan->student ? ($loan->student->class ?? '') : '';
-            
+
             $sheet->setCellValue('A' . $row, $loan->borrowed_at->format('Y-m-d H:i:s'));
             $sheet->setCellValue('B' . $row, $borrowerType);
             $sheet->setCellValue('C' . $row, $borrowerId);
@@ -1051,7 +1236,7 @@ class ToolLoanController extends Controller
             $sheet->setCellValue('I' . $row, $loan->toolUnit->tool->location ?? '');
             $sheet->setCellValue('J' . $row, $loan->status === 'borrowed' ? 'Dipinjam' : 'Dikembalikan');
             $sheet->setCellValue('K' . $row, $loan->returned_at ? $loan->returned_at->format('Y-m-d H:i:s') : '');
-            
+
             $conditionLabels = [
                 'good' => 'Baik',
                 'damaged' => 'Rusak',
@@ -1059,7 +1244,7 @@ class ToolLoanController extends Controller
             ];
             $sheet->setCellValue('L' . $row, $loan->return_condition ? ($conditionLabels[$loan->return_condition] ?? $loan->return_condition) : '');
             $sheet->setCellValue('M' . $row, $loan->notes ?? '');
-            
+
             $row++;
         }
 
@@ -1075,7 +1260,7 @@ class ToolLoanController extends Controller
             $writer->setDelimiter(',');
             $writer->setEnclosure('"');
             $writer->setLineEnding("\r\n");
-            
+
             return new StreamedResponse(function () use ($writer) {
                 $writer->save('php://output');
             }, 200, [
@@ -1085,7 +1270,7 @@ class ToolLoanController extends Controller
             ]);
         } else {
             $writer = new Xlsx($spreadsheet);
-            
+
             return new StreamedResponse(function () use ($writer) {
                 $writer->save('php://output');
             }, 200, [

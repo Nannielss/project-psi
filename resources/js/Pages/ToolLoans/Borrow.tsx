@@ -51,6 +51,7 @@ export default function Borrow() {
     const [verifiedStudent, setVerifiedStudent] = useState<Student | null>(null);
     const [pendingStudent, setPendingStudent] = useState<Student | null>(null);
     const [studentActiveLoans, setStudentActiveLoans] = useState<Array<{ id: number; tool_name: string; unit_code: string; borrowed_at: string }>>([]);
+    const [canBorrowToday, setCanBorrowToday] = useState<boolean>(true);
     const [isConfirmStudentOpen, setIsConfirmStudentOpen] = useState(false);
     const [_isVerifyingStudent, setIsVerifyingStudent] = useState(false);
     const [_studentVerificationError, setStudentVerificationError] = useState('');
@@ -183,26 +184,31 @@ export default function Borrow() {
                 if (response.data.type === 'student') {
                     setPendingStudent(response.data.student);
                     setStudentActiveLoans(response.data.active_loans || []);
+                    setCanBorrowToday(response.data.can_borrow_today ?? true);
                     setNis(codeValue);
 
-                    // Check if student has active loans
-                    if (response.data.has_active_loan) {
+                    // Check if student can borrow today (same-day borrowing allowed)
+                    // Only block if has active loan AND cannot borrow today (has loan from previous day)
+                    if (response.data.has_active_loan && response.data.can_borrow_today === false) {
                         const toolNames = response.data.active_loans
                             .map((loan: { tool_name: string; unit_code: string }) =>
                                 `${loan.tool_name} (${loan.unit_code})`
                             )
                             .join(', ');
-                        const errorMessage = `Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ${toolNames}`;
+                        const errorMessage = `Siswa masih memiliki pinjaman aktif dari hari sebelumnya. Harap kembalikan terlebih dahulu sebelum meminjam lagi: ${toolNames}`;
                         toast.error(errorMessage);
                         // Reset states and QR scanner to reactivate camera
                         setPendingStudent(null);
                         setStudentActiveLoans([]);
+                        setCanBorrowToday(true);
                         setStudentVerificationError('');
                         setIsVerifyingStudent(false);
                         // Reset QRScanner by changing key to force re-render and reactivate camera
                         setQrScannerKey(prev => prev + 1);
                         return;
                     }
+
+                    // If has active loan but can borrow today (same day), allow to proceed
 
                     setIsConfirmStudentOpen(true);
                 } else if (response.data.type === 'teacher') {
@@ -225,6 +231,7 @@ export default function Borrow() {
                 setVerifiedStudent(null);
                 setPendingStudent(null);
                 setStudentActiveLoans([]);
+                setCanBorrowToday(true);
                 // Reset QRScanner to reactivate camera
                 setQrScannerKey(prev => prev + 1);
             }
@@ -300,12 +307,13 @@ export default function Borrow() {
     const handleConfirmStudent = () => {
         if (!pendingStudent) return;
 
-        // Double check: prevent confirmation if student has active loans
-        if (studentActiveLoans.length > 0) {
+        // Double check: prevent confirmation if student has active loans from previous day
+        // Allow if can borrow today (same-day borrowing)
+        if (studentActiveLoans.length > 0 && !canBorrowToday) {
             const toolNames = studentActiveLoans
                 .map(loan => `${loan.tool_name} (${loan.unit_code})`)
                 .join(', ');
-            toast.error(`Siswa masih memiliki pinjaman aktif. Harap kembalikan terlebih dahulu: ${toolNames}`);
+            toast.error(`Siswa masih memiliki pinjaman aktif dari hari sebelumnya. Harap kembalikan terlebih dahulu sebelum meminjam lagi: ${toolNames}`);
             setIsConfirmStudentOpen(false);
             // Reset QRScanner to reactivate camera
             setQrScannerKey(prev => prev + 1);
@@ -315,6 +323,7 @@ export default function Borrow() {
         setVerifiedStudent(pendingStudent);
         setPendingStudent(null);
         setStudentActiveLoans([]);
+        setCanBorrowToday(true);
         setIsConfirmStudentOpen(false);
         setStep(2);
     };
@@ -322,6 +331,7 @@ export default function Borrow() {
     const handleCancelStudent = () => {
         setPendingStudent(null);
         setStudentActiveLoans([]);
+        setCanBorrowToday(true);
         setIsConfirmStudentOpen(false);
         // Reset QRScanner by changing key to force re-render
         setQrScannerKey(prev => prev + 1);
@@ -799,6 +809,7 @@ export default function Borrow() {
                                             setSelectedTools([]);
                                             setVerifiedStudent(null);
                                             setVerifiedTeacher(null);
+                                            setCanBorrowToday(true);
                                             // Reset QRScanner
                                             setQrScannerKey(prev => prev + 1);
                                             setStudentVerificationError('');

@@ -71,6 +71,7 @@ export default function Index({ tools, filters }: ToolsPageProps) {
     const [isUnitsOpen, setIsUnitsOpen] = useState(false);
     const [isAddUnitOpen, setIsAddUnitOpen] = useState(false);
     const [isEditUnitOpen, setIsEditUnitOpen] = useState(false);
+    const [isDeleteUnitOpen, setIsDeleteUnitOpen] = useState(false);
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
     const [selectedUnit, setSelectedUnit] = useState<ToolUnit | null>(null);
@@ -331,14 +332,20 @@ export default function Index({ tools, filters }: ToolsPageProps) {
 
     const handleDeleteUnit = (unit: ToolUnit) => {
         if (!selectedTool) return;
-        if (confirm(`Apakah Anda yakin ingin menghapus unit ${unit.unit_code}?`)) {
-            router.delete(`/tools/${selectedTool.id}/units/${unit.id}`, {
-                onSuccess: () => {
-                    // Reload units
-                    handleViewUnits(selectedTool);
-                },
-            });
-        }
+        setSelectedUnit(unit);
+        setIsDeleteUnitOpen(true);
+    };
+
+    const confirmDeleteUnit = () => {
+        if (!selectedTool || !selectedUnit) return;
+        router.delete(`/tools/${selectedTool.id}/units/${selectedUnit.id}`, {
+            onSuccess: () => {
+                setIsDeleteUnitOpen(false);
+                setSelectedUnit(null);
+                // Reload units
+                handleViewUnits(selectedTool);
+            },
+        });
     };
 
     const handleImport = (e: React.FormEvent) => {
@@ -1408,6 +1415,38 @@ export default function Index({ tools, filters }: ToolsPageProps) {
                                 </Button>
                             </DialogFooter>
                         </form>
+                    </DialogContent>
+                </Dialog>
+
+                    {/* Delete Unit Dialog */}
+                <Dialog open={isDeleteUnitOpen} onOpenChange={setIsDeleteUnitOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Hapus Unit Alat</DialogTitle>
+                            <DialogDescription>
+                                Apakah Anda yakin ingin menghapus unit <strong>{selectedUnit?.unit_code}</strong>?
+                                Tindakan ini tidak dapat dibatalkan.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsDeleteUnitOpen(false);
+                                    setSelectedUnit(null);
+                                }}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={confirmDeleteUnit}
+                            >
+                                Hapus
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 

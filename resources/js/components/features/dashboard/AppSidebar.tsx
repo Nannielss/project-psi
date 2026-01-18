@@ -11,6 +11,7 @@ import {
     History,
     UserCog,
     QrCode,
+    MapPin,
 } from "lucide-react"
 
 import { NavMain } from "./NavMain"
@@ -96,6 +97,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     url: "/subjects",
                 },
             ],
+        },
+        {
+            title: "Lokasi Alat",
+            url: "/device-locations",
+            icon: MapPin,
         },
         {
             title: "Riwayat",

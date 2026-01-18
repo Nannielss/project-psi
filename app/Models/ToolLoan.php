@@ -10,6 +10,7 @@ class ToolLoan extends Model
 {
     protected $fillable = [
         'student_id',
+        'device_location_id',
         'borrower_teacher_id',
         'tool_unit_id',
         'teacher_id',
@@ -66,6 +67,14 @@ class ToolLoan extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    /**
+     * Get the device location that owns the loan.
+     */
+    public function deviceLocation(): BelongsTo
+    {
+        return $this->belongsTo(DeviceLocation::class);
     }
 
     /**

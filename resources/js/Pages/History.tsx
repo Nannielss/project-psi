@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, X, Eye, Download, FileSpreadsheet, Info } from 'lucide-react';
+import { Search, X, Eye, Download, FileSpreadsheet, Info, MapPin } from 'lucide-react';
 import { PageProps, ToolLoan } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -290,6 +290,7 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                 <TableHead className="px-4 py-3">Peminjam</TableHead>
                                                 <TableHead className="px-4 py-3">Guru & Mapel</TableHead>
                                                 <TableHead className="px-4 py-3">Alat</TableHead>
+                                                <TableHead className="px-2 py-3 text-xs">Lokasi</TableHead>
                                                 <TableHead className="px-4 py-3">Status</TableHead>
                                                 <TableHead className="px-4 py-3">Tanggal Kembali</TableHead>
                                                 <TableHead className="px-4 py-3">Kondisi Kembali</TableHead>
@@ -356,7 +357,19 @@ export default function History({ loans, filters }: HistoryPageProps) {
                                                             <div className="text-sm text-muted-foreground">
                                                                 Unit: {loan.tool_unit?.unit_code || '-'}
                                                             </div>
+
                                                         </div>
+
+                                                    </TableCell>
+                                                    <TableCell className="px-2 py-3">
+                                                        {loan.device_location ? (
+                                                            <div className="flex items-center gap-1 text-xs truncate max-w-[100px]" title={loan.device_location.name}>
+                                                                <MapPin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                                                                <span className="truncate">{loan.device_location.name}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         {getStatusBadge(loan.status)}

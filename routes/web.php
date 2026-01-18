@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DeviceLocationController;
 use App\Http\Controllers\MajorController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaterialController;
@@ -35,6 +36,9 @@ Route::get('/tool-loan-photos/{type}/{filename}', [ToolLoanController::class, 's
 
 // Tool Loans - Public routes (no auth required)
 Route::get('tool-loans', [ToolLoanController::class, 'indexPage'])->name('tool-loans.index-page');
+Route::get('tool-loans/location-login', [ToolLoanController::class, 'locationLoginPage'])->name('tool-loans.location-login');
+Route::post('tool-loans/location-login', [ToolLoanController::class, 'verifyLocationPassword'])->name('tool-loans.location-login.post');
+Route::post('tool-loans/location-logout', [ToolLoanController::class, 'locationLogout'])->name('tool-loans.location-logout');
 Route::get('tool-loans/borrow', [ToolLoanController::class, 'borrowPage'])->name('tool-loans.borrow');
 Route::get('tool-loans/return', [ToolLoanController::class, 'returnPage'])->name('tool-loans.return');
 Route::get('tool-loans/teachers', [ToolLoanController::class, 'getTeachers'])->name('tool-loans.teachers');
@@ -56,7 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    
+
     // Private profile photos
     Route::get('/profile-photos/{filename}', [ProfileController::class, 'servePhoto'])->name('profile-photos');
 
@@ -96,7 +100,7 @@ Route::middleware('auth')->group(function () {
         Route::get('material-pickups', [MaterialPickupController::class, 'index'])->name('material-pickups.index');
         Route::get('material-pickups/create', [MaterialPickupController::class, 'create'])->name('material-pickups.create');
         Route::post('material-pickups', [MaterialPickupController::class, 'store'])->name('material-pickups.store');
-        
+
         // Materials CRUD within material-pickups page - non-guru only
         Route::middleware('role:admin,kajur,wakajur')->group(function () {
             Route::post('material-pickups/materials', [MaterialPickupController::class, 'storeMaterial'])->name('material-pickups.materials.store');
@@ -113,11 +117,11 @@ Route::middleware('auth')->group(function () {
     // Users CRUD - admin, kajur, wakajur only
     Route::middleware('role:admin,kajur,wakajur')->group(function () {
         Route::resource('users', UserController::class);
+        Route::resource('device-locations', DeviceLocationController::class);
     });
 
     // Print QR
     Route::get('print-qr', [PrintQRController::class, 'index'])->name('print-qr.index');
-
 });
 
 require __DIR__.'/auth.php';

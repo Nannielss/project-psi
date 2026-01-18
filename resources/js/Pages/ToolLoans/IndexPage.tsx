@@ -1,9 +1,25 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Package, PackageCheck } from 'lucide-react';
+import { ArrowRight, Package, PackageCheck, MapPin, LogOut } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
-export default function IndexPage() {
+interface IndexPageProps {
+    deviceLocation?: {
+        id: number;
+        name: string;
+    };
+}
+
+export default function IndexPage({ deviceLocation }: IndexPageProps) {
+    const handleLogout = () => {
+        router.post(route('tool-loans.location-logout'), {}, {
+            onSuccess: () => {
+                // Redirect handled by backend
+            },
+        });
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <Head title="Peminjaman & Pengembalian Alat" />
@@ -12,10 +28,22 @@ export default function IndexPage() {
                 <div className="space-y-12">
                     {/* Header */}
                     <div className="text-center space-y-4">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                            <MapPin className="h-5 w-5 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-foreground">{deviceLocation?.name || 'Tidak diketahui'}</span>
+                            </p>
+                            {deviceLocation && (
+                                <Button variant="ghost" size="sm" className="p-0.5 ml-2" onClick={handleLogout} title="Logout Lokasi Device">
+                                    <LogOut className="h-4 w-4 text-red-600" />
+                                </Button>
+                            )}
+                        </div>
                         <h1 className="text-4xl font-bold tracking-tight">Peminjaman & Pengembalian Alat</h1>
                         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                             Pilih menu untuk meminjam atau mengembalikan alat laboratorium
                         </p>
+
                     </div>
 
                     {/* Options Grid */}

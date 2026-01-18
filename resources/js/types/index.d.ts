@@ -101,10 +101,21 @@ export interface Tool {
     borrowed_count?: number;
 }
 
+export interface DeviceLocation {
+    id: number;
+    name: string;
+    password_hash?: string; // Hashed password (for internal use, not displayed)
+    plain_password?: string; // Decrypted plain text password for display
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface ToolLoan {
     id: number;
     student_id?: number;
     borrower_teacher_id?: number;
+    device_location_id?: number;
     tool_unit_id: number;
     teacher_id?: number;
     subject_id?: number;
@@ -122,6 +133,7 @@ export interface ToolLoan {
     tool_unit?: ToolUnit;
     teacher?: Teacher;
     subject?: Subject;
+    device_location?: DeviceLocation;
 }
 
 export type PageProps<
