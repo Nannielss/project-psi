@@ -31,7 +31,7 @@ class ToolLoanController extends Controller
     {
         // Check if device location is set in session
         $deviceLocationId = session('device_location_id');
-        
+
         if (!$deviceLocationId) {
             return redirect()->route('tool-loans.location-login');
         }
@@ -130,7 +130,7 @@ class ToolLoanController extends Controller
     {
         // Check if device location is set in session
         $deviceLocationId = session('device_location_id');
-        
+
         if (!$deviceLocationId) {
             return redirect()->route('tool-loans.location-login');
         }
@@ -798,12 +798,12 @@ class ToolLoanController extends Controller
                 $count = count($codes);
                 if ($count <= 3) {
                     // Show all codes if 3 or less
-                    $locationMessages[] = "{$count} alat (" . implode(', ', $codes) . ") harus dikembalikan di {$location}";
+                    $locationMessages[] = "{$count} alat harus dikembalikan di {$location}";
                 } else {
                     // Show first 3 codes + count if more than 3
                     $shownCodes = array_slice($codes, 0, 3);
                     $remaining = $count - 3;
-                    $locationMessages[] = "{$count} alat (" . implode(', ', $shownCodes) . ", dan {$remaining} lainnya) harus dikembalikan di {$location}";
+                    $locationMessages[] = "{$count} alat harus dikembalikan di {$location}";
                 }
             }
 

@@ -107,13 +107,7 @@ export default function Return() {
                         const locationMessages: string[] = [];
                         Object.entries(groupedByLocation).forEach(([location, codes]) => {
                             const count = codes.length;
-                            if (count <= 3) {
-                                locationMessages.push(`${count} alat (${codes.join(', ')}) harus dikembalikan di ${location}`);
-                            } else {
-                                const shownCodes = codes.slice(0, 3);
-                                const remaining = count - 3;
-                                locationMessages.push(`${count} alat (${shownCodes.join(', ')}, dan ${remaining} lainnya) harus dikembalikan di ${location}`);
-                            }
+                            locationMessages.push(`${count} alat harus dikembalikan di ${location}`);
                         });
 
                         const errorMessage = locationMessages.join('. ');
@@ -266,7 +260,7 @@ export default function Return() {
                             <CardContent className="space-y-6 pt-6">
                                 <QRScanner
                                     open={true}
-                                    onClose={() => {}}
+                                    onClose={() => { }}
                                     onScanSuccess={handleQRScanSuccess}
                                     onScanError={handleQRScanError}
                                     inline={true}
