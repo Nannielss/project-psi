@@ -86,45 +86,59 @@ export default function Return() {
                 const loans = response.data.loans;
                 const currentLocationId = response.data.current_location_id;
 
-                // Validate location: Check if any loan was borrowed at a different location
+                // Filter loans: only show loans from current location
+                let loansToReturn = loans;
                 if (currentLocationId) {
+                    // Filter to only include loans from current location
+                    loansToReturn = loans.filter((loan: ToolLoan) =>
+                        !loan.device_location_id || loan.device_location_id === currentLocationId
+                    );
+
+                    // Check if there are loans from other locations (for info message)
                     const locationMismatchLoans = loans.filter((loan: ToolLoan) =>
                         loan.device_location_id && loan.device_location_id !== currentLocationId
                     );
 
                     if (locationMismatchLoans.length > 0) {
-                        // Group by location
+                        // Group by location for informative message
                         const groupedByLocation: Record<string, string[]> = {};
                         locationMismatchLoans.forEach((loan: ToolLoan) => {
-                            const locationName = loan.device_location?.name || 'lokasi yang berbeda';
+                            const locationName = loan.device_location?.name || 'lokasi lain';
                             if (!groupedByLocation[locationName]) {
                                 groupedByLocation[locationName] = [];
                             }
                             groupedByLocation[locationName].push(loan.tool_unit?.unit_code || '');
                         });
 
-                        // Build error message
+                        // Build message based on whether there are returnable loans
                         const locationMessages: string[] = [];
                         Object.entries(groupedByLocation).forEach(([location, codes]) => {
                             const count = codes.length;
                             locationMessages.push(`${count} alat harus dikembalikan di ${location}`);
                         });
 
-                        const errorMessage = locationMessages.join('. ');
-                        toast.error(errorMessage);
-
-                        // Reset verified student to prevent proceeding
-                        setVerifiedStudent(null);
-                        setActiveLoans([]);
-                        setReturnItems([]);
-                        setIsLoadingLoans(false);
-                        return;
+                        if (loansToReturn.length === 0) {
+                            // No loans can be returned at current location - show error message
+                            const errorMessage = `Alat tidak dapat dikembalikan di lokasi ini. ${locationMessages.join('. ')}`;
+                            toast.error(errorMessage, { duration: 6000 });
+                            // Reset state and redirect back to tool-loans page after showing error
+                            setVerifiedStudent(null);
+                            setActiveLoans([]);
+                            setReturnItems([]);
+                            setTimeout(() => {
+                                router.visit('/tool-loans');
+                            }, 2000);
+                        } else {
+                            // Some loans can be returned - show informative message
+                            const infoMessage = `Sisa ${locationMessages.join('. ')}`;
+                            toast.warning(infoMessage, { duration: 5000 });
+                        }
                     }
                 }
 
-                setActiveLoans(loans);
+                setActiveLoans(loansToReturn);
                 // Initialize return items with default condition 'good'
-                setReturnItems(loans.map((loan: ToolLoan) => ({
+                setReturnItems(loansToReturn.map((loan: ToolLoan) => ({
                     loan,
                     condition: 'good' as const,
                     notes: '',
