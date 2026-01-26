@@ -769,10 +769,17 @@ class ToolLoanController extends Controller
                     'notes' => $returnData['notes'] ?? null,
                 ]);
 
-                // Update tool unit condition
-                $toolUnit->update([
+                // Update tool unit condition and description
+                $updateData = [
                     'condition' => $returnData['return_condition'],
-                ]);
+                ];
+
+                // If returned as damaged and has notes, update description
+                if ($returnData['return_condition'] === 'damaged' && !empty($returnData['notes'])) {
+                    $updateData['description'] = $returnData['notes'];
+                }
+
+                $toolUnit->update($updateData);
 
                 $successCount++;
             } catch (\Exception $e) {
