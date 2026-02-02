@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
 
         User::create([
             'username' => 'admin',
-            'password' => Hash::make('admin1234'),
+            'password' => Hash::make(env('ADMIN_DEFAULT_PASSWORD', 'changeme')),
             'role' => 'admin',
             'photo' => null, // Will use default photo
         ]);
