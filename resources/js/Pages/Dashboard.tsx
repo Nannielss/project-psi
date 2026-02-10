@@ -187,140 +187,80 @@ export default function Dashboard({
                 <div className="grid gap-4 md:grid-cols-2">
                     {/* Alerts */}
                     {hasAlerts && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                                    Peringatan
-                                </CardTitle>
-                                <CardDescription>
-                                    Item yang memerlukan perhatian
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Overdue Loans */}
-                                {overdueLoans.length > 0 && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-2 text-yellow-600">
-                                            Peminjaman Terlambat ({overdueLoans.length})
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {overdueLoans.slice(0, 3).map((loan) => (
-                                                <div
-                                                    key={loan.id}
-                                                    className="text-sm p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800"
-                                                >
-                                                    <div className="font-medium">{loan.tool_name}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {loan.student_name} ({loan.student_nis}) - {loan.hours_ago} jam yang lalu
+                        <>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                                        Peringatan
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Item yang memerlukan perhatian
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Overdue Loans */}
+                                    {overdueLoans.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 text-yellow-600">
+                                                Peminjaman Terlambat ({overdueLoans.length})
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {overdueLoans.slice(0, 3).map((loan) => (
+                                                    <div
+                                                        key={loan.id}
+                                                        className="text-sm p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800"
+                                                    >
+                                                        <div className="font-medium">{loan.tool_name}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {loan.student_name} ({loan.student_nis}) - {loan.hours_ago} jam yang lalu
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </CardContent>
+                            </Card>
 
-                                {/* Low Stock Materials */}
-                                {lowStockMaterials.length > 0 && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-2 text-orange-600">
-                                            Stok Rendah ({lowStockMaterials.length})
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {lowStockMaterials.slice(0, 3).map((material) => (
-                                                <div
-                                                    key={material.id}
-                                                    className="text-sm p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800"
-                                                >
-                                                    <div className="font-medium">{material.nama_bahan}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Stok: {material.stok} {material.satuan}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                                        Peringatan
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Item yang memerlukan perhatian
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Damaged Tools */}
+                                    {damagedToolsPending.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 text-red-600">
+                                                Alat Rusak ({damagedToolsPending.length})
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {damagedToolsPending.slice(0, 3).map((tool) => (
+                                                    <div
+                                                        key={tool.id}
+                                                        className="text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800"
+                                                    >
+                                                        <div className="font-medium">{tool.tool_name}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            Unit: {tool.unit_code} - Perlu perbaikan
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* Damaged Tools */}
-                                {damagedToolsPending.length > 0 && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-2 text-red-600">
-                                            Alat Rusak ({damagedToolsPending.length})
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {damagedToolsPending.slice(0, 3).map((tool) => (
-                                                <div
-                                                    key={tool.id}
-                                                    className="text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800"
-                                                >
-                                                    <div className="font-medium">{tool.tool_name}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Unit: {tool.unit_code} - Perlu perbaikan
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </>
                     )}
 
-                    
                 </div>
-
-                {/* Recent Loans */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Peminjaman Terbaru</CardTitle>
-                        <CardDescription>
-                            5 peminjaman terakhir
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Siswa</TableHead>
-                                    <TableHead>Alat</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Tanggal</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {recent_loans.length > 0 ? (
-                                    recent_loans.map((loan) => (
-                                        <TableRow key={loan.id}>
-                                            <TableCell>
-                                                <div className="font-medium">{loan.student_name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {loan.student_nis} - {loan.major_name}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium">{loan.tool_name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {loan.unit_code}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{getStatusBadge(loan.status)}</TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                                {loan.borrowed_at}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                                            Tidak ada data
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
             </div>
         </DashboardLayout>
     );
