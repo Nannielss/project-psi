@@ -18,12 +18,18 @@ class RoleMiddleware
         $user = $request->user();
 
         if (!$user) {
-            abort(403, 'Unauthorized');
+            return redirect()->route('login');
         }
 
-        // Check if user has one of the required roles
         if (!in_array($user->role, $roles)) {
-            abort(403, 'Access denied. Insufficient permissions.');
+            $previousUrl = url()->previous();
+            $fallbackUrl = route('dashboard');
+            $redirectUrl = !$previousUrl || $previousUrl === $request->fullUrl()
+                ? $fallbackUrl
+                : $previousUrl;
+
+            return redirect()->to($redirectUrl)
+                ->with('access_denied', 'Anda tidak berhak mengakses halaman ini.');
         }
 
         return $next($request);

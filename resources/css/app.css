@@ -4,26 +4,25 @@
 
 @layer base {
     :root {
-        /* Light mode - off-white, light gray, bone/beige */
-        --background: 0 0% 98.5%;
-        --foreground: 0 0% 8%;
+        --background: 220 38% 97%;
+        --foreground: 225 24% 18%;
         --card: 0 0% 99%;
-        --card-foreground: 0 0% 8%;
+        --card-foreground: 225 24% 18%;
         --popover: 0 0% 99%;
-        --popover-foreground: 0 0% 8%;
-        --primary: 0 0% 9%;
+        --popover-foreground: 225 24% 18%;
+        --primary: 227 29% 42%;
         --primary-foreground: 0 0% 98%;
-        --secondary: 0 0% 94%;
-        --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 95%;
-        --muted-foreground: 0 0% 45%;
-        --accent: 0 0% 95%;
-        --accent-foreground: 0 0% 9%;
+        --secondary: 222 32% 94%;
+        --secondary-foreground: 225 24% 18%;
+        --muted: 220 27% 95%;
+        --muted-foreground: 223 12% 40%;
+        --accent: 221 34% 94%;
+        --accent-foreground: 225 24% 18%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 88%;
-        --input: 0 0% 88%;
-        --ring: 0 0% 3.9%;
+        --border: 220 14% 88%;
+        --input: 220 14% 88%;
+        --ring: 227 29% 42%;
         --chart-1: 12 76% 61%;
         --chart-2: 173 58% 39%;
         --chart-3: 197 37% 24%;
@@ -31,19 +30,19 @@
         --chart-5: 27 87% 67%;
         --radius: 0.5rem;
         --sidebar: oklch(0.985 0 0);
-        --sidebar-background: 0 0% 97%;
-        --sidebar-foreground: 240 5.3% 26.1%;
-        --sidebar-primary: 240 5.9% 10%;
+        --sidebar-background: 220 33% 96%;
+        --sidebar-foreground: 225 18% 33%;
+        --sidebar-primary: 227 29% 42%;
         --sidebar-primary-foreground: 0 0% 98%;
-        --sidebar-accent: 240 4.8% 94%;
-        --sidebar-accent-foreground: 240 5.9% 10%;
-        --sidebar-border: 220 13% 90%;
-        --sidebar-ring: 217.2 91.2% 59.8%;
-        font-size: 19px;
+        --sidebar-accent: 220 45% 99%;
+        --sidebar-accent-foreground: 227 29% 42%;
+        --sidebar-border: 220 24% 90%;
+        --sidebar-ring: 227 29% 42%;
+        font-size: 15px;
 
         @media (max-width: 640px) {
             :root {
-                font-size: 16px;
+                font-size: 14px;
             }
         }
     }
@@ -92,6 +91,11 @@
     body {
         @apply bg-background text-foreground;
         line-height: 1.6;
+        background-image:
+            radial-gradient(circle at top left, rgba(148, 163, 184, 0.1), transparent 32%),
+            radial-gradient(circle at bottom right, rgba(203, 213, 225, 0.18), transparent 28%),
+            linear-gradient(180deg, #fafcff 0%, #f5f7fb 45%, #f8fafc 100%);
+        min-height: 100vh;
     }
 }
 
@@ -116,5 +120,49 @@
     [data-sonner-toast] [data-description] {
         font-size: 1rem !important; /* 16px */
         margin-top: 0.5rem !important;
+    }
+
+    .vk-card {
+        @apply rounded-[26px] border border-slate-200/80 bg-white shadow-[0_18px_46px_-30px_rgba(71,85,105,0.2)] backdrop-blur;
+    }
+
+    .vk-card-dark {
+        @apply rounded-[26px] border border-slate-400/10 bg-[linear-gradient(160deg,#5b6694_0%,#46527b_100%)] text-white shadow-[0_20px_48px_-30px_rgba(45,59,104,0.55)];
+    }
+
+    .vk-chip {
+        @apply inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500;
+    }
+
+    .vk-soft-panel {
+        @apply rounded-[24px] border border-slate-200/85 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)];
+    }
+
+    .vk-tab-pill {
+        @apply rounded-full px-5 py-2 text-sm font-semibold transition;
+    }
+
+    .vk-tab-pill-active {
+        @apply bg-white text-slate-800 shadow-[0_10px_26px_-18px_rgba(71,85,105,0.45)] ring-1 ring-slate-200;
+    }
+
+    .vk-tab-pill-idle {
+        @apply text-slate-600 hover:bg-white/70 hover:text-slate-800;
+    }
+
+    .vk-unit-badge {
+        @apply inline-flex items-center justify-center rounded-full bg-slate-200/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700;
+    }
+
+    .vk-brand-frame {
+        @apply flex items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white shadow-[0_14px_32px_-24px_rgba(71,85,105,0.28)];
+    }
+
+    .vk-page-title {
+        @apply text-[1.85rem] font-semibold tracking-[-0.04em] text-slate-800;
+    }
+
+    .vk-page-copy {
+        @apply text-[0.9rem] leading-6 text-slate-500;
     }
 }

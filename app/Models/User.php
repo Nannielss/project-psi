@@ -18,11 +18,12 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'name',
+        'email',
         'username',
         'password',
         'role',
         'photo',
-        'teacher_id',
     ];
 
     /**
@@ -45,13 +46,5 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
         ];
-    }
-
-    /**
-     * Get the teacher associated with this user (for guru role).
-     */
-    public function teacher()
-    {
-        return $this->belongsTo(Teacher::class);
     }
 }

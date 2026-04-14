@@ -142,6 +142,14 @@ export type PageProps<
     auth: {
         user: User;
     };
+    branding?: {
+        business_name?: string;
+        business_tagline?: string | null;
+        business_address?: string | null;
+        business_phone?: string | null;
+        logo_path?: string | null;
+        logo_url?: string | null;
+    };
     flash?: {
         success?: string;
         error?: string;

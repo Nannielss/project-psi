@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ class ProfileController extends Controller
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'branding' => AppSetting::sharedData(),
         ]);
     }
 
@@ -61,6 +63,40 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit');
     }
 
+    public function updateBranding(Request $request): RedirectResponse
+    {
+        if ($request->user()?->role !== 'admin') {
+            return Redirect::route('profile.edit')
+                ->with('access_denied', 'Anda tidak berhak mengakses halaman ini.');
+        }
+
+        $validated = $request->validate([
+            'business_name' => ['required', 'string', 'max:255'],
+            'business_tagline' => ['nullable', 'string', 'max:255'],
+            'business_address' => ['nullable', 'string', 'max:255'],
+            'business_phone' => ['nullable', 'string', 'max:50'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        $settings = AppSetting::current() ?? AppSetting::create(AppSetting::defaults());
+
+        if ($request->hasFile('logo')) {
+            if ($settings->logo_path && Storage::disk('local')->exists($settings->logo_path)) {
+                Storage::disk('local')->delete($settings->logo_path);
+            }
+
+            $settings->logo_path = $request->file('logo')->store('branding');
+        }
+
+        $settings->business_name = $validated['business_name'];
+        $settings->business_tagline = $validated['business_tagline'] ?? null;
+        $settings->business_address = $validated['business_address'] ?? null;
+        $settings->business_phone = $validated['business_phone'] ?? null;
+        $settings->save();
+
+        return Redirect::route('profile.edit')->with('success', 'Branding usaha berhasil diperbarui.');
+    }
+
     /**
      * Serve private profile photos (requires authentication).
      */
@@ -80,11 +116,30 @@ class ProfileController extends Controller
         return response($file, 200)->header('Content-Type', $mimeType);
     }
 
+    public function serveBrandingLogo(string $filename)
+    {
+        $path = "branding/{$filename}";
+
+        if (!Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+
+        $file = Storage::disk('local')->get($path);
+        $mimeType = Storage::disk('local')->mimeType($path);
+
+        return response($file, 200)->header('Content-Type', $mimeType);
+    }
+
     /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse
     {
+        if ($request->user()?->role !== 'admin') {
+            return Redirect::route('profile.edit')
+                ->with('access_denied', 'Anda tidak berhak menghapus akun ini.');
+        }
+
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);
