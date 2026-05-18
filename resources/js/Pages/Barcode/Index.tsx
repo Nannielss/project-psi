@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+﻿import { useMemo, useRef, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import Barcode from 'react-barcode';
-import { Package, Printer, Search, Tag } from 'lucide-react';
 
 type Location = {
     id: number;
@@ -106,7 +105,6 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
                         onClick={() => openPrintWindow(filteredItems)}
                         className="vk-card-dark flex items-center gap-3 px-5 py-3 text-sm font-semibold"
                     >
-                        <Printer className="h-4 w-4" />
                         Cetak Semua Hasil
                     </button>
                 </div>
@@ -115,43 +113,32 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
             <Head title="Barcode" />
 
             <div className="space-y-6">
-                <div className="grid gap-5 xl:grid-cols-[0.9fr_0.9fr_1.2fr]">
-                    <div className="vk-card flex items-center gap-4 px-6 py-5">
-                        <div className="rounded-2xl bg-indigo-50 p-4 text-primary">
-                            <Tag className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Total Label</p>
-                            <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{filteredItems.length}</p>
-                        </div>
+                <div className="grid gap-5 xl:grid-cols-[0.7fr_0.7fr_1.6fr]">
+                    <div className="vk-card px-6 py-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Total Label</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{filteredItems.length}</p>
                     </div>
 
-                    <div className="vk-card flex items-center gap-4 px-6 py-5">
-                        <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-600">
-                            <Package className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Total SKU</p>
-                            <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{items.length}</p>
-                        </div>
+                    <div className="vk-card px-6 py-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Total SKU</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{items.length}</p>
                     </div>
 
                     <div className="vk-card p-5">
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
                             <div className="relative">
-                                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="text"
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
                                     placeholder="Cari nama barang atau kode..."
-                                    className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                    className="h-12 w-full rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-500"
                                 />
                             </div>
                             <select
                                 value={locationFilter}
                                 onChange={(event) => setLocationFilter(event.target.value)}
-                                className="h-12 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                className="h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                             >
                                 <option value="all">Semua Lokasi</option>
                                 {locations.map((location) => (
@@ -167,9 +154,8 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
                 <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
                     {filteredItems.length === 0 ? (
                         <div className="vk-card col-span-full px-6 py-16 text-center">
-                            <Package className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-                            <p className="text-lg font-semibold text-slate-700">Tidak ada barcode yang cocok</p>
-                            <p className="mt-2 text-sm text-slate-500">Ubah kata kunci pencarian atau filter lokasi.</p>
+                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Tidak ada barcode yang cocok</p>
+                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Ubah kata kunci pencarian atau filter lokasi.</p>
                         </div>
                     ) : (
                         filteredItems.map((item) => {
@@ -181,26 +167,23 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
                                         ref={(node) => {
                                             cardRefs.current[item.id] = node;
                                         }}
-                                        className="barcode-card rounded-[20px] border border-slate-200 bg-white px-5 py-5"
+                                        className="barcode-card rounded-[20px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-5"
                                     >
-                                        <p className="eyebrow text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-400">Inventory Barcode</p>
-                                        <h3 className="title mt-2 text-lg font-semibold text-slate-800">{item.nama_barang}</h3>
-                                        <p className="meta mt-1 text-sm text-slate-500">
+                                        <p className="eyebrow text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Inventory Barcode</p>
+                                        <h3 className="title mt-2 text-lg font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</h3>
+                                        <p className="meta mt-1 text-sm text-slate-500 dark:text-slate-400">
                                             {item.kode_barang} | {location?.name || 'Tanpa lokasi'}
                                         </p>
-                                        <div className="barcode-wrap mt-5 flex justify-center rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-4">
+                                        <div className="barcode-wrap mt-5 flex justify-center rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 px-3 py-4">
                                             <Barcode value={item.kode_barang} displayValue fontSize={16} height={54} width={1.5} />
                                         </div>
-                                        <p className="meta mt-4 text-sm text-slate-500">
-                                            Stok: {item.stok} {item.satuan} | Harga: {formatCurrency(item.harga_jual)}
-                                        </p>
                                     </div>
 
                                     <div className="mt-5 flex justify-end">
                                         <button
                                             type="button"
                                             onClick={() => openPrintWindow([item])}
-                                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-primary"
+                                            className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-primary"
                                         >
                                             Cetak Label
                                         </button>

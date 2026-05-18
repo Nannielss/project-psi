@@ -34,9 +34,9 @@ class HistoryController extends Controller
                 ->latest()
                 ->limit(30)
                 ->get(),
-            'sales' => Sale::with('user:id,username', 'customer:id,shop_name')
+            'sales' => Sale::with('user:id,username', 'customer:id,shop_name,tier', 'items.item:id,kode_barang,nama_barang,satuan')
                 ->latest()
-                ->limit(30)
+                ->limit(50)
                 ->get(),
             'today' => $today->format('Y-m-d'),
         ]);

@@ -1,7 +1,6 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+﻿import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Edit, Package, Plus, Printer, Search, Trash2, TriangleAlert, X } from 'lucide-react';
 import Barcode from 'react-barcode';
 
 type Location = {
@@ -190,7 +189,6 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                             onClick={() => openModal()}
                             className="vk-card-dark flex items-center gap-3 px-5 py-3 text-sm font-semibold"
                         >
-                            <Plus className="h-4 w-4" />
                             Tambah Barang
                         </button>
                     </div>
@@ -201,36 +199,26 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
 
             <div className="space-y-6">
                 <div className="grid gap-5 xl:grid-cols-[0.8fr_0.8fr_1.4fr]">
-                    <div className="vk-card flex items-center gap-4 px-6 py-5">
-                        <div className="rounded-2xl bg-indigo-50 p-4 text-primary">
-                            <Package className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Total SKU</p>
-                            <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{items.length}</p>
-                        </div>
-                    </div>
-
-                    <div className="vk-card flex items-center gap-4 px-6 py-5">
-                        <div className="rounded-2xl bg-rose-50 p-4 text-rose-500">
-                            <TriangleAlert className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Low Stock</p>
-                            <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-rose-500">{lowStockCount}</p>
-                        </div>
+                    <div className="vk-card px-6 py-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Total SKU</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{items.length}</p>
                     </div>
 
                     <div className="vk-card px-6 py-5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Current Inventory Value</p>
-                        <p className="mt-2 text-[2.35rem] font-semibold tracking-[-0.06em] text-slate-800">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Low Stock</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-rose-500">{lowStockCount}</p>
+                    </div>
+
+                    <div className="vk-card px-6 py-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Current Inventory Value</p>
+                        <p className="mt-2 text-[2.35rem] font-semibold tracking-[-0.06em] text-slate-800 dark:text-slate-100">
                             {formatCurrency(totalInventoryValue)}
                         </p>
                     </div>
                 </div>
 
                 <section className="vk-card overflow-hidden">
-                    <div className="flex flex-col gap-5 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-5 border-b border-slate-100 dark:border-slate-800 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2 rounded-full bg-slate-100/90 p-1.5">
                             <button type="button" onClick={() => setActiveTab('all')} className={tabClass('all')}>
                                 Semua Barang
@@ -244,26 +232,25 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                         </div>
 
                         <div className="relative w-full max-w-md">
-                            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Cari item atau kode barang..."
-                                className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                className="h-12 w-full rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-500"
                             />
                         </div>
                     </div>
 
                     {showFilters && (
-                        <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-5">
+                        <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 px-6 py-5">
                             <div className="grid gap-4 lg:grid-cols-[220px_220px_auto]">
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Lokasi</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Lokasi</label>
                                     <select
                                         value={locationFilter}
                                         onChange={(event) => setLocationFilter(event.target.value)}
-                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
+                                        className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm text-slate-700 outline-none"
                                     >
                                         <option value="all">Semua Lokasi</option>
                                         {locations.map((location) => (
@@ -274,11 +261,11 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Unit</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Unit</label>
                                     <select
                                         value={unitFilter}
                                         onChange={(event) => setUnitFilter(event.target.value)}
-                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
+                                        className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm text-slate-700 outline-none"
                                     >
                                         <option value="all">Semua Unit</option>
                                         {unitOptions.map((unit) => (
@@ -292,9 +279,8 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     <button
                                         type="button"
                                         onClick={clearFilters}
-                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                                     >
-                                        <X className="h-4 w-4" />
                                         Reset Filter
                                     </button>
                                 </div>
@@ -304,7 +290,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
 
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[820px] text-left">
-                            <thead className="bg-slate-50/70 text-[0.72rem] uppercase tracking-[0.18em] text-slate-400">
+                            <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-[0.72rem] uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">Kode / Nama Item</th>
                                     <th className="px-6 py-4 font-semibold">Lokasi</th>
@@ -315,13 +301,12 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     <th className="px-6 py-4 text-center font-semibold">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {filteredItems.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-16 text-center">
-                                            <Package className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-                                            <p className="text-lg font-semibold text-slate-700">Tidak ada barang yang cocok</p>
-                                            <p className="mt-2 text-sm text-slate-500">Coba ubah kata kunci pencarian atau filter tab.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Tidak ada barang yang cocok</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian atau filter tab.</p>
                                         </td>
                                     </tr>
                                 ) : (
@@ -342,12 +327,12 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                                     : 'text-emerald-600';
 
                                         return (
-                                            <tr key={item.id} className="hover:bg-slate-50/65">
+                                            <tr key={item.id} className="hover:bg-slate-50/65 dark:hover:bg-slate-800/65">
                                                 <td className="px-6 py-5">
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{item.kode_barang}</p>
-                                                    <p className="mt-2 font-semibold text-slate-800">{item.nama_barang}</p>
+                                                    <p className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{item.kode_barang}</p>
+                                                    <p className="mt-2 font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</p>
                                                 </td>
-                                                <td className="px-6 py-5 text-sm text-slate-500">{location?.name || '-'}</td>
+                                                <td className="px-6 py-5 text-sm text-slate-500 dark:text-slate-400">{location?.name || '-'}</td>
                                                 <td className="px-6 py-5">
                                                     <span className="vk-unit-badge">
                                                         {item.satuan}
@@ -364,33 +349,33 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-5 text-slate-500">{formatCurrency(item.harga_grosir)}</td>
-                                                <td className="px-6 py-5 font-semibold text-slate-800">{formatCurrency(item.harga_jual)}</td>
+                                                <td className="px-6 py-5 text-slate-500 dark:text-slate-400">{formatCurrency(item.harga_grosir)}</td>
+                                                <td className="px-6 py-5 font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(item.harga_jual)}</td>
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <button
                                                             type="button"
                                                             title="Print barcode"
                                                             onClick={() => handlePrintBarcode(item)}
-                                                            className="rounded-full border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-slate-300 hover:text-primary"
+                                                            className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-primary"
                                                         >
-                                                            <Printer className="h-4 w-4" />
+                                                            Barcode
                                                         </button>
                                                         <button
                                                             type="button"
                                                             title="Edit barang"
                                                             onClick={() => openModal(item)}
-                                                            className="rounded-full border border-slate-200 bg-white p-2.5 text-amber-500 transition hover:border-amber-200 hover:bg-amber-50"
+                                                            className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:border-amber-200 hover:bg-amber-50"
                                                         >
-                                                            <Edit className="h-4 w-4" />
+                                                            Edit
                                                         </button>
                                                         <button
                                                             type="button"
                                                             title="Hapus barang"
                                                             onClick={() => handleDelete(item)}
-                                                            className="rounded-full border border-slate-200 bg-white p-2.5 text-rose-500 transition hover:border-rose-200 hover:bg-rose-50"
+                                                            className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50"
                                                         >
-                                                            <Trash2 className="h-4 w-4" />
+                                                            Hapus
                                                         </button>
                                                     </div>
                                                 </td>
@@ -407,17 +392,17 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
                     <div className="vk-card w-full max-w-2xl overflow-hidden">
-                        <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                        <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
                             <div>
-                                <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800">
+                                <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800 dark:text-slate-100">
                                     {selectedItem ? 'Edit Barang' : 'Tambah Barang Baru'}
                                 </h3>
-                                <p className="mt-1 text-sm text-slate-500">Simpan informasi SKU, harga, stok, dan lokasi penyimpanan.</p>
+                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Simpan informasi SKU, harga, stok, dan lokasi penyimpanan.</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={closeModal}
-                                className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50"
+                                className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-500 transition hover:bg-slate-50"
                             >
                                 x
                             </button>
@@ -426,22 +411,22 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                             <form onSubmit={submit} className="space-y-6">
                                 <div className="grid gap-5 md:grid-cols-2">
                                     <div className="md:col-span-2">
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Nama Barang</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Nama Barang</label>
                                         <input
                                             type="text"
                                             value={form.nama_barang}
                                             onChange={(event) => setForm({ ...form, nama_barang: event.target.value })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Satuan</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Satuan</label>
                                         <select
                                             value={form.satuan}
                                             onChange={(event) => setForm({ ...form, satuan: event.target.value })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                         >
                                             <option value="pcs">PCS</option>
                                             <option value="kg">KG</option>
@@ -452,44 +437,44 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     </div>
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Stok Awal</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Stok Awal</label>
                                         <input
                                             type="number"
                                             value={form.stok}
                                             onChange={(event) => setForm({ ...form, stok: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Harga Grosir</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Harga Grosir</label>
                                         <input
                                             type="number"
                                             value={form.harga_grosir}
                                             onChange={(event) => setForm({ ...form, harga_grosir: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Harga Jual</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Harga Jual</label>
                                         <input
                                             type="number"
                                             value={form.harga_jual}
                                             onChange={(event) => setForm({ ...form, harga_jual: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                             required
                                         />
                                     </div>
 
                                     <div className="md:col-span-2">
-                                        <label className="mb-2 block text-sm font-medium text-slate-700">Lokasi Penyimpanan</label>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Lokasi Penyimpanan</label>
                                         <select
                                             value={form.location_id}
                                             onChange={(event) => setForm({ ...form, location_id: event.target.value ? Number(event.target.value) : '' })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                                         >
                                             <option value="">Pilih lokasi</option>
                                             {locations.map((location) => (
@@ -501,11 +486,11 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-6">
+                                <div className="flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-6">
                                     <button
                                         type="button"
                                         onClick={closeModal}
-                                        className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                        className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                                     >
                                         Batal
                                     </button>
@@ -523,9 +508,9 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
                     <div className="vk-card w-full max-w-md px-8 py-8 text-center">
                         <p className="vk-chip mb-5">Barcode Preview</p>
-                        <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800">{selectedItem.nama_barang}</h3>
-                        <p className="mt-2 text-sm text-slate-500">{selectedItem.kode_barang}</p>
-                        <div className="mt-8 flex justify-center rounded-[24px] border border-slate-100 bg-white p-5">
+                        <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800 dark:text-slate-100">{selectedItem.nama_barang}</h3>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{selectedItem.kode_barang}</p>
+                        <div className="mt-8 flex justify-center rounded-[24px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
                             <Barcode value={selectedItem.kode_barang} displayValue />
                         </div>
                         <div className="mt-8 flex items-center justify-center gap-3">
@@ -535,7 +520,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowBarcodeModal(false)}
-                                className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600"
+                                className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400"
                             >
                                 Tutup
                             </button>

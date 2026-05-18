@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef, useState } from 'react';
-import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function DeleteUserForm({
@@ -69,7 +68,6 @@ export default function DeleteUserForm({
         <Card className={`border-destructive ${className}`}>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-5 w-5" />
                     Hapus Akun
                 </CardTitle>
                 <CardDescription>
@@ -117,8 +115,7 @@ export default function DeleteUserForm({
                                     Batal
                                 </Button>
                                 <Button type="submit" variant="destructive" disabled={processing}>
-                                    {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Hapus Akun
+                                    {processing ? 'Menghapus...' : 'Hapus Akun'}
                                 </Button>
                             </DialogFooter>
                         </form>

@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import Checkbox from '@/components/Checkbox';
-import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
@@ -77,7 +76,7 @@ export default function Login() {
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                         tabIndex={-1}
                                     >
-                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        {showPassword ? 'Sembunyikan' : 'Tampilkan'}
                                     </button>
                                 </div>
                                 {errors.password && (

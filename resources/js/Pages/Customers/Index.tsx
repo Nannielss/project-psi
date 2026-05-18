@@ -1,7 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Plus, Store, Trash2, Users } from 'lucide-react';
 
 type Customer = {
     id: number;
@@ -96,7 +95,6 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                         onClick={() => openModal()}
                         className="vk-card-dark inline-flex items-center gap-3 px-5 py-3 text-sm font-semibold"
                     >
-                        <Plus className="h-4 w-4" />
                         Add Partner
                     </button>
                 </div>
@@ -112,44 +110,44 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                         <p className="mt-2 text-sm text-white/70">Basis pelanggan aktif sistem</p>
                     </div>
                     <div className="vk-card p-6">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Distribusi Tier</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Distribusi Tier</p>
                         <div className="mt-4 flex items-center gap-4">
-                                <div className="h-16 w-3 rounded-full bg-slate-200">
+                                <div className="h-16 w-3 rounded-full bg-slate-200 dark:bg-slate-700">
                                 <div
                                     className="rounded-full bg-primary"
                                     style={{ height: `${customers.length === 0 ? 0 : Math.max(12, (retailCount / customers.length) * 100)}%` }}
                                 />
                                 </div>
-                            <div className="space-y-2 text-sm text-slate-600">
-                                <p><span className="font-semibold text-slate-800">{retailCount}</span> Retail</p>
-                                <p><span className="font-semibold text-slate-800">{wholesaleCount}</span> Wholesale</p>
+                            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <p><span className="font-semibold text-slate-800 dark:text-slate-100">{retailCount}</span> Retail</p>
+                                <p><span className="font-semibold text-slate-800 dark:text-slate-100">{wholesaleCount}</span> Wholesale</p>
                             </div>
                         </div>
                     </div>
                     <div className="vk-card p-6">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Partner Baru</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Partner Baru</p>
                         <div className="mt-4 flex items-center gap-3">
                             <div className="flex -space-x-2">
                                 {['A', 'B', 'C'].map((label) => (
-                                    <div key={label} className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-semibold text-slate-600">
+                                    <div key={label} className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-900 dark:bg-slate-700 dark:text-slate-300">
                                         {label}
                                     </div>
                                 ))}
                             </div>
-                            <p className="text-sm text-slate-500">Siap diprospek minggu ini</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Siap diprospek minggu ini</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="vk-card overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
                         <div>
-                            <h3 className="text-lg font-semibold text-slate-800">Daftar Mitra & Reseller</h3>
-                            <p className="mt-1 text-sm text-slate-500">Data toko, kontak, dan alamat pelanggan.</p>
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Daftar Mitra & Reseller</h3>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Data toko, kontak, dan alamat pelanggan.</p>
                         </div>
                         <button
                             onClick={() => openModal()}
-                            className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200"
+                            className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         >
                             Tambah Partner
                         </button>
@@ -157,53 +155,47 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
 
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[760px] text-left">
-                            <thead className="bg-slate-50/70 text-[0.72rem] uppercase tracking-[0.18em] text-slate-400">
+                            <thead className="bg-slate-50/70 text-[0.72rem] uppercase tracking-[0.18em] text-slate-400 dark:bg-slate-800/60 dark:text-slate-500">
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">ID</th>
                                     <th className="px-6 py-4 font-semibold">Nama Toko</th>
                                     <th className="px-6 py-4 font-semibold">No HP</th>
                                     <th className="px-6 py-4 font-semibold">Alamat</th>
-                                    <th className="px-6 py-4 font-semibold">Tier</th>
+                                    <th className="px-6 py-4 text-center font-semibold">Tier</th>
                                     <th className="px-6 py-4 text-center font-semibold">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {customers.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-16 text-center">
-                                            <Users className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-                                            <p className="text-lg font-semibold text-slate-700">Belum ada data pelanggan</p>
-                                            <p className="mt-2 text-sm text-slate-500">Tambahkan toko atau reseller agar modul penjualan siap dipakai.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Belum ada data pelanggan</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Tambahkan toko atau reseller agar modul penjualan siap dipakai.</p>
                                         </td>
                                     </tr>
                                 ) : (
                                     customers.map((customer) => (
-                                        <tr key={customer.id} className="hover:bg-slate-50/65">
+                                        <tr key={customer.id} className="hover:bg-slate-50/65 dark:hover:bg-slate-800/50">
                                             <td className="px-6 py-5">
-                                                <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                                <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                                     RS-{String(customer.id).padStart(4, '0')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
-                                                        <Store className="h-4 w-4" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800">{customer.shop_name}</p>
-                                                        <p className="text-sm text-slate-500">{customer.category || 'general'}</p>
-                                                    </div>
+                                                <div>
+                                                    <p className="font-semibold text-slate-800 dark:text-slate-100">{customer.shop_name}</p>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">{customer.category || 'general'}</p>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-5 text-slate-600">{customer.phone || '-'}</td>
-                                            <td className="px-6 py-5 text-slate-500">{customer.address || '-'}</td>
-                                            <td className="px-6 py-5">
-                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                            <td className="px-6 py-5 text-slate-600 dark:text-slate-400">{customer.phone || '-'}</td>
+                                            <td className="px-6 py-5 text-slate-500 dark:text-slate-400">{customer.address || '-'}</td>
+                                            <td className="px-6 py-5 text-center">
+                                                <span className={`inline-flex min-w-[104px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold capitalize leading-none ${
                                                     customer.tier === 'wholesale'
-                                                        ? 'bg-indigo-50 text-primary'
+                                                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200'
                                                         : customer.tier === 'member'
-                                                            ? 'bg-emerald-50 text-emerald-700'
-                                                            : 'bg-slate-100 text-slate-600'
+                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
+                                                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700/50 dark:text-slate-200'
                                                 }`}>
                                                     {customer.tier}
                                                 </span>
@@ -213,16 +205,16 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                                     <button
                                                         type="button"
                                                         onClick={() => openModal(customer)}
-                                                        className="rounded-full border border-slate-200 bg-white p-2.5 text-amber-500 transition hover:border-amber-200 hover:bg-amber-50"
+                                                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:border-amber-200 hover:bg-amber-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-amber-950/30"
                                                     >
-                                                        <Edit className="h-4 w-4" />
+                                                        Edit
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDelete(customer)}
-                                                        className="rounded-full border border-slate-200 bg-white p-2.5 text-rose-500 transition hover:border-rose-200 hover:bg-rose-50"
+                                                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-rose-950/30"
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        Hapus
                                                     </button>
                                                 </div>
                                             </td>
@@ -256,7 +248,7 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                     type="text"
                                     value={form.shop_name}
                                     onChange={(event) => setForm({ ...form, shop_name: event.target.value })}
-                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                    className="vk-field"
                                     required
                                 />
                             </div>
@@ -266,7 +258,7 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                     type="text"
                                     value={form.phone}
                                     onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                    className="vk-field"
                                 />
                             </div>
                             <div className="grid gap-5 md:grid-cols-2">
@@ -275,7 +267,7 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                     <select
                                         value={form.tier}
                                         onChange={(event) => setForm({ ...form, tier: event.target.value as CustomerForm['tier'] })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-select"
                                     >
                                         <option value="retail">Retail</option>
                                         <option value="wholesale">Wholesale</option>
@@ -288,7 +280,7 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                         type="text"
                                         value={form.category}
                                         onChange={(event) => setForm({ ...form, category: event.target.value })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-field"
                                         placeholder="Contoh: toko kelontong, cafe, elektronik"
                                     />
                                 </div>
@@ -298,7 +290,7 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                 <textarea
                                     value={form.address}
                                     onChange={(event) => setForm({ ...form, address: event.target.value })}
-                                    className="min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
+                                    className="vk-textarea"
                                 />
                             </div>
                             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-6">

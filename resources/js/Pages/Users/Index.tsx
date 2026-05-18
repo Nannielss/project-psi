@@ -31,7 +31,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageProps, User } from '@/types';
-import { Edit, Mail, Plus, Search, ShieldCheck, Trash2, UserCog, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 type InventoryRole = 'admin' | 'petugas' | 'kasir';
@@ -69,10 +68,10 @@ function getRoleLabel(role: string | undefined) {
 }
 
 function getRoleBadgeClass(role: string | undefined) {
-    if (role === 'admin') return 'border-transparent bg-primary text-white';
-    if (role === 'petugas') return 'border-transparent bg-sky-100 text-sky-700';
-    if (role === 'kasir') return 'border-transparent bg-amber-100 text-amber-700';
-    return 'border-slate-200 bg-slate-100 text-slate-600';
+    if (role === 'admin') return 'vk-role-admin';
+    if (role === 'petugas') return 'vk-role-petugas';
+    if (role === 'kasir') return 'vk-role-kasir';
+    return 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700';
 }
 
 export default function Index({ users, filters }: UsersPageProps) {
@@ -187,7 +186,7 @@ export default function Index({ users, filters }: UsersPageProps) {
                 <section className="vk-card overflow-hidden">
                     <div className="grid gap-6 px-6 py-6 md:grid-cols-[minmax(0,1fr)_240px] md:px-8">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
                                 Access Control
                             </p>
                             <h1 className="mt-2 vk-page-title">Manajemen User</h1>
@@ -197,12 +196,9 @@ export default function Index({ users, filters }: UsersPageProps) {
                         </div>
 
                         <div className="vk-soft-panel flex items-center gap-4 px-5 py-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <ShieldCheck className="h-6 w-6" />
-                            </div>
                             <div>
-                                <p className="text-sm font-semibold text-slate-700">Akses Aman</p>
-                                <p className="text-sm text-slate-500">Hanya admin yang bisa membuka modul ini.</p>
+                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Akses Aman</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Hanya admin yang bisa membuka modul ini.</p>
                             </div>
                         </div>
                     </div>
@@ -223,7 +219,6 @@ export default function Index({ users, filters }: UsersPageProps) {
                                     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                                         <DialogTrigger asChild>
                                             <Button className="rounded-xl">
-                                                <Plus className="h-4 w-4" />
                                                 Tambah User
                                             </Button>
                                         </DialogTrigger>
@@ -282,7 +277,6 @@ export default function Index({ users, filters }: UsersPageProps) {
                             <CardContent className="space-y-5">
                                 <form onSubmit={handleSearch} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_210px_auto_auto]">
                                     <div className="relative">
-                                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                         <Input placeholder="Cari nama, username, atau email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
                                     </div>
                                     <Select value={roleFilter || 'all'} onValueChange={(value) => setRoleFilter(value === 'all' ? '' : value)}>
@@ -309,60 +303,59 @@ export default function Index({ users, filters }: UsersPageProps) {
                                                 router.get('/users', {}, { preserveState: true, replace: true });
                                             }}
                                         >
-                                            <X className="h-4 w-4" />
                                             Reset
                                         </Button>
                                     )}
                                 </form>
 
                                 {users.data.length === 0 ? (
-                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-slate-500">
+                                    <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                                         Belum ada data user yang cocok dengan filter saat ini.
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="overflow-hidden rounded-[22px] border border-slate-200/80">
+                                        <div className="overflow-hidden rounded-[22px] border border-slate-200/80 dark:border-slate-800">
                                             <Table>
-                                                <TableHeader className="bg-slate-50/90">
+                                                <TableHeader className="bg-slate-50/80 dark:bg-slate-800/90">
                                                     <TableRow className="hover:bg-transparent">
-                                                        <TableHead className="px-5">Pengguna</TableHead>
-                                                        <TableHead>Kontak</TableHead>
-                                                        <TableHead>Role</TableHead>
-                                                        <TableHead>Dibuat</TableHead>
-                                                        <TableHead className="px-5 text-right">Aksi</TableHead>
+                                                        <TableHead className="px-5 text-slate-500 dark:text-slate-400">Pengguna</TableHead>
+                                                        <TableHead className="text-slate-500 dark:text-slate-400">Kontak</TableHead>
+                                                        <TableHead className="text-slate-500 dark:text-slate-400">Role</TableHead>
+                                                        <TableHead className="text-slate-500 dark:text-slate-400">Dibuat</TableHead>
+                                                        <TableHead className="px-5 text-right text-slate-500 dark:text-slate-400">Aksi</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {users.data.map((user) => (
-                                                        <TableRow key={user.id} className="hover:bg-slate-50/70">
+                                                        <TableRow key={user.id} className="border-slate-200/70 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/65">
                                                             <TableCell className="px-5 py-4">
                                                                 <div>
-                                                                    <p className="font-semibold text-slate-800">{user.name || user.username}</p>
-                                                                    <p className="text-sm text-slate-500">@{user.username}</p>
+                                                                    <p className="font-semibold text-slate-800 dark:text-slate-100">{user.name || user.username}</p>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">@{user.username}</p>
                                                                 </div>
                                                             </TableCell>
-                                                            <TableCell className="py-4 text-sm text-slate-600">{user.email || '-'}</TableCell>
+                                                            <TableCell className="py-4 text-sm text-slate-600 dark:text-slate-400">{user.email || '-'}</TableCell>
                                                             <TableCell className="py-4">
                                                                 <Badge className={getRoleBadgeClass(user.role)}>
                                                                     {getRoleLabel(user.role)}
                                                                 </Badge>
                                                             </TableCell>
-                                                            <TableCell className="py-4 text-sm text-slate-600">
+                                                            <TableCell className="py-4 text-sm text-slate-600 dark:text-slate-400">
                                                                 {user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '-'}
                                                             </TableCell>
                                                             <TableCell className="px-5 py-4">
                                                                 <div className="flex justify-end gap-2">
-                                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} className="rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800">
-                                                                        <Edit className="h-4 w-4" />
+                                                                    <Button variant="ghost" size="sm" onClick={() => handleEdit(user)} className="rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+                                                                        Edit
                                                                     </Button>
                                                                     <Button
                                                                         variant="ghost"
-                                                                        size="icon"
+                                                                        size="sm"
                                                                         onClick={() => handleDelete(user)}
                                                                         disabled={currentUser?.id === user.id}
-                                                                        className="rounded-xl text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                                                        className="rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/70"
                                                                     >
-                                                                        <Trash2 className="h-4 w-4" />
+                                                                        Hapus
                                                                     </Button>
                                                                 </div>
                                                             </TableCell>
@@ -374,14 +367,14 @@ export default function Index({ users, filters }: UsersPageProps) {
 
                                         {users.last_page > 1 && (
                                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                                <p className="text-sm text-slate-500">
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">
                                                     Menampilkan {((users.current_page - 1) * users.per_page) + 1} sampai {Math.min(users.current_page * users.per_page, users.total)} dari {users.total} user
                                                 </p>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     {users.links.map((link, index) => {
                                                         if (!link.url) {
                                                             return (
-                                                                <span key={index} className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-300" dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                                <span key={index} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-300" dangerouslySetInnerHTML={{ __html: link.label }} />
                                                             );
                                                         }
 
@@ -392,7 +385,7 @@ export default function Index({ users, filters }: UsersPageProps) {
                                                                 className={`rounded-xl border px-3 py-2 text-sm transition ${
                                                                     link.active
                                                                         ? 'border-primary bg-primary text-white shadow-sm'
-                                                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                                                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-slate-50'
                                                                 }`}
                                                                 dangerouslySetInnerHTML={{ __html: link.label }}
                                                             />
@@ -408,20 +401,19 @@ export default function Index({ users, filters }: UsersPageProps) {
                     </div>
 
                     <div className="space-y-6">
-                        <Card>
+                        <Card className="border-slate-200/80 dark:border-slate-800">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <UserCog className="h-5 w-5 text-primary" />
+                                <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
                                     Ringkasan Role
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-slate-500 dark:text-slate-400">
                                     Distribusi akun berdasarkan fungsi operasional.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {roleOptions.map((role) => (
-                                    <div key={role} className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
-                                        <span className="text-sm font-medium text-slate-700">{getRoleLabel(role)}</span>
+                                    <div key={role} className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-800/80 px-4 py-3">
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{getRoleLabel(role)}</span>
                                         <Badge className={getRoleBadgeClass(role)}>
                                             {users.data.filter((user) => user.role === role).length}
                                         </Badge>
@@ -430,15 +422,14 @@ export default function Index({ users, filters }: UsersPageProps) {
                             </CardContent>
                         </Card>
 
-                        <Card>
+                        <Card className="border-slate-200/80 dark:border-slate-800">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Mail className="h-5 w-5 text-primary" />
+                                <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
                                     Catatan
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm leading-6 text-slate-500">
+                                <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
                                     Akun `petugas` dipakai untuk operasional gudang, sedangkan `kasir` dipakai untuk transaksi penjualan. Admin dapat mengelola seluruh modul.
                                 </p>
                             </CardContent>
@@ -447,10 +438,10 @@ export default function Index({ users, filters }: UsersPageProps) {
                 </div>
 
                 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                    <DialogContent className="rounded-[28px] border-white/80 bg-white/95">
+                    <DialogContent className="rounded-[28px] border border-slate-200/80 bg-white/95 dark:border-slate-800 dark:bg-slate-950/95">
                         <DialogHeader>
-                            <DialogTitle>Edit User</DialogTitle>
-                            <DialogDescription>
+                            <DialogTitle className="text-slate-800 dark:text-slate-100">Edit User</DialogTitle>
+                            <DialogDescription className="text-slate-500 dark:text-slate-400">
                                 Perbarui data akun pengguna yang dipilih.
                             </DialogDescription>
                         </DialogHeader>

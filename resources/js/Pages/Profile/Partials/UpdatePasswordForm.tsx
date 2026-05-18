@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function UpdatePasswordForm({
@@ -115,8 +114,7 @@ export default function UpdatePasswordForm({
 
                     <div className="flex items-center gap-4">
                         <Button type="submit" disabled={processing}>
-                            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simpan
+                            {processing ? 'Menyimpan...' : 'Simpan'}
                         </Button>
                         {recentlySuccessful && (
                             <p className="text-sm text-muted-foreground">

@@ -1,18 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    CircleAlert,
-    Eraser,
-    Minus,
-    Plus,
-    Printer,
-    Receipt,
-    Search,
-    ShoppingCart,
-    Store,
-    Trash2,
-} from 'lucide-react';
+import { toast } from 'sonner';
 
 type Customer = {
     id: number;
@@ -90,12 +79,13 @@ const formatCurrency = (value: number | string) =>
         maximumFractionDigits: 0,
     }).format(Number(value));
 
-export default function SalesIndex({ customers, items, recentSales, summary }: SalesPageProps) {
+export default function SalesIndex({ customers, items, summary }: SalesPageProps) {
     const page = usePage();
     const params = new URLSearchParams(page.url.split('?')[1] || '');
     const receiptUrl = typeof page.props.flash?.receipt_url === 'string' ? page.props.flash.receipt_url : null;
-    const canClearRecent = page.props.auth?.user?.role === 'admin';
-    const lastOpenedReceipt = useRef<string | null>(null);
+
+    const printFrameRef = useRef<HTMLIFrameElement | null>(null);
+    const lastPrintedReceipt = useRef<string | null>(null);
     const [search, setSearch] = useState(params.get('search') || '');
     const [customerMode, setCustomerMode] = useState<CustomerMode>('non_member');
     const [customerId, setCustomerId] = useState<string>('');
@@ -106,7 +96,6 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
     const [notes, setNotes] = useState('');
     const [cart, setCart] = useState<CartLine[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showClearDialog, setShowClearDialog] = useState(false);
 
     const filteredItems = useMemo(() => {
         return items.filter((item) =>
@@ -159,13 +148,51 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
     );
     const canSubmit = cartDetails.length > 0 && !isSubmitting && (paymentMethod !== 'cash' || cashShortage === 0);
 
-    useEffect(() => {
-        if (!receiptUrl || lastOpenedReceipt.current === receiptUrl || typeof window === 'undefined') {
+    const printReceipt = (url: string, options?: { silent?: boolean }) => {
+        if (typeof window === 'undefined') {
             return;
         }
 
-        lastOpenedReceipt.current = receiptUrl;
-        window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+        if (!options?.silent) {
+            toast.success('Resi sedang disiapkan untuk dicetak');
+        }
+
+        const existingFrame = printFrameRef.current;
+        if (existingFrame) {
+            existingFrame.remove();
+        }
+
+        const frame = document.createElement('iframe');
+        frame.style.position = 'fixed';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '0';
+        frame.style.height = '0';
+        frame.style.border = '0';
+        frame.style.visibility = 'hidden';
+        frame.src = url;
+        frame.onload = () => {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+            window.setTimeout(() => {
+                frame.remove();
+                if (printFrameRef.current === frame) {
+                    printFrameRef.current = null;
+                }
+            }, 1200);
+        };
+
+        document.body.appendChild(frame);
+        printFrameRef.current = frame;
+    };
+
+    useEffect(() => {
+        if (!receiptUrl || lastPrintedReceipt.current === receiptUrl || typeof window === 'undefined') {
+            return;
+        }
+
+        lastPrintedReceipt.current = receiptUrl;
+        printReceipt(receiptUrl, { silent: true });
     }, [receiptUrl]);
 
     const addToCart = (itemId: number) => {
@@ -235,17 +262,6 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
         });
     };
 
-    const clearRecentSales = () => {
-        if (recentSales.length === 0) return;
-
-        router.delete(route('sales.clear-recent'), {
-            data: {
-                sale_ids: recentSales.map((sale) => sale.id),
-            },
-            preserveScroll: true,
-            onSuccess: () => setShowClearDialog(false),
-        });
-    };
 
     return (
         <AuthenticatedLayout
@@ -266,20 +282,20 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
             <div className="space-y-6">
                 <div className="grid gap-4 lg:grid-cols-3">
                     <div className="vk-card p-6">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Penjualan Hari Ini</p>
-                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Penjualan Hari Ini</p>
+                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">
                             {formatCurrency(summary.sales_today)}
                         </p>
                     </div>
                     <div className="vk-card p-6">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Transaksi Hari Ini</p>
-                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Transaksi Hari Ini</p>
+                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">
                             {summary.transactions_today}
                         </p>
                     </div>
                     <div className="vk-card p-6">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Item Siap Jual</p>
-                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Item Siap Jual</p>
+                        <p className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">
                             {summary.items_available}
                         </p>
                     </div>
@@ -288,130 +304,64 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                 <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <div className="space-y-6">
                         <section className="vk-card overflow-hidden">
-                            <div className="border-b border-slate-100 px-6 py-5">
+                            <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-5">
                                 <div className="relative max-w-md">
-                                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                     <input
                                         type="text"
                                         value={search}
                                         onChange={(event) => setSearch(event.target.value)}
                                         placeholder="Cari barang atau kode..."
-                                        className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                        className="vk-field rounded-full pl-11 pr-4"
                                     />
                                 </div>
                             </div>
 
                             <div className="grid gap-4 p-6 md:grid-cols-2">
-                                {filteredItems.map((item) => (
-                                    <div key={item.id} className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-sm">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{item.kode_barang}</p>
-                                        <h3 className="mt-2 text-lg font-semibold text-slate-800">{item.nama_barang}</h3>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            Stok: {item.stok} {item.satuan}
-                                        </p>
-                                        <p className="mt-4 text-xl font-semibold text-slate-800">
-                                            {formatCurrency(item.harga_jual)}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() => addToCart(item.id)}
-                                            className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Tambah ke Keranjang
-                                        </button>
+                                {filteredItems.length === 0 ? (
+                                    <div className="col-span-full rounded-[24px] border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 px-6 py-12 text-center">
+                                        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Barang tidak ditemukan</p>
+                                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba cari dengan nama lain atau gunakan kode barang yang lebih spesifik.</p>
                                     </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        <section className="vk-card overflow-hidden">
-                            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-5">
-                                <div className="flex items-center gap-3">
-                                    <Receipt className="h-5 w-5 text-primary" />
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-slate-800">Transaksi Terbaru</h3>
-                                        <p className="text-sm text-slate-500">Riwayat checkout kasir yang baru tersimpan.</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowClearDialog(true)}
-                                    disabled={recentSales.length === 0 || !canClearRecent}
-                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    <Eraser className="h-3.5 w-3.5" />
-                                    {canClearRecent ? 'Clear Riwayat' : 'Hanya Owner'}
-                                </button>
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {recentSales.length === 0 ? (
-                                    <div className="px-6 py-12 text-center text-slate-500">Belum ada transaksi penjualan.</div>
                                 ) : (
-                                    recentSales.map((sale) => (
-                                        <div key={sale.id} className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
-                                            <div>
-                                                <p className="font-semibold text-slate-800">SALE-{sale.id}</p>
-                                                <p className="mt-1 text-sm text-slate-500">
-                                                    {sale.customer?.shop_name || 'Walk-in Customer'} | {new Date(sale.created_at).toLocaleString('id-ID')}
-                                                </p>
-                                                <div className="mt-2 flex flex-wrap gap-2">
-                                                    <p className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
-                                                        {sale.payment_method}
-                                                    </p>
-                                                    <p className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
-                                                        {sale.customer_mode === 'member' ? 'member' : 'non-member'}
-                                                    </p>
-                                                </div>
-                                                <p className="mt-2 text-sm text-slate-500">
-                                                    {sale.items.map((entry) => `${entry.item?.nama_barang || 'Item'} x${entry.quantity}`).join(', ')}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-semibold text-slate-800">{formatCurrency(sale.total_amount)}</p>
-                                                <p className="mt-1 text-sm text-slate-500">{sale.user?.username || '-'}</p>
-                                                {sale.payment_method === 'cash' && sale.cash_received !== null && (
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        Bayar {formatCurrency(sale.cash_received)} | Kembali {formatCurrency(sale.change_amount || 0)}
-                                                    </p>
-                                                )}
-                                                {Number(sale.discount_amount) > 0 && (
-                                                    <p className="mt-1 text-xs text-emerald-600">
-                                                        Diskon {sale.discount_type === 'percent'
-                                                            ? `${Number(sale.discount_value)}%`
-                                                            : formatCurrency(sale.discount_value)} | Potongan {formatCurrency(sale.discount_amount)}
-                                                    </p>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => window.open(route('sales.receipt', { sale: sale.id, auto_print: 1 }), '_blank', 'noopener,noreferrer')}
-                                                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                                >
-                                                    <Printer className="h-3.5 w-3.5" />
-                                                    Cetak Struk
-                                                </button>
-                                            </div>
+                                    filteredItems.map((item) => (
+                                        <div key={item.id} className="rounded-[22px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.16)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(15,23,42,0.22)]">
+                                            <p className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{item.kode_barang}</p>
+                                            <h3 className="mt-3 text-lg font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</h3>
+                                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                                Stok: {item.stok} {item.satuan}
+                                            </p>
+                                            <p className="mt-4 text-xl font-semibold text-slate-800 dark:text-slate-100">
+                                                {formatCurrency(item.harga_jual)}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => addToCart(item.id)}
+                                                className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-100 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:bg-slate-100 dark:hover:bg-slate-600"
+                                            >
+                                                Tambah ke Keranjang
+                                            </button>
                                         </div>
                                     ))
                                 )}
                             </div>
                         </section>
+
                     </div>
 
+
                     <form onSubmit={submit} className="vk-card h-fit overflow-hidden">
-                        <div className="border-b border-slate-100 px-6 py-5">
+                        <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-5">
                             <div className="flex items-center gap-3">
-                                <ShoppingCart className="h-5 w-5 text-primary" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-slate-800">Keranjang Kasir</h3>
-                                    <p className="text-sm text-slate-500">Pilih pelanggan dan cek total sebelum simpan.</p>
+                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Keranjang Kasir</h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Pilih pelanggan dan cek total sebelum simpan.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-5 p-6">
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-slate-700">Jenis Pelanggan</label>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Jenis Pelanggan</label>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <button
                                         type="button"
@@ -421,35 +371,35 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                         }}
                                         className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                                             customerMode === 'non_member'
-                                                ? 'border-slate-300 bg-slate-100 text-slate-800'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                                ? 'border-slate-400 bg-slate-200 text-slate-900 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100'
+                                                : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
                                         }`}
                                     >
                                         Non Member
-                                        <p className="mt-1 text-xs font-medium text-slate-500">Pembeli umum / walk-in</p>
+                                        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Pembeli umum / walk-in</p>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setCustomerMode('member')}
                                         className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                                             customerMode === 'member'
-                                                ? 'border-primary/30 bg-indigo-50 text-primary'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                                ? 'border-indigo-400 bg-indigo-200 text-indigo-900 dark:border-indigo-500 dark:bg-indigo-900/60 dark:text-indigo-100'
+                                                : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
                                         }`}
                                     >
                                         Member
-                                        <p className="mt-1 text-xs font-medium text-slate-500">Toko / reseller terdaftar</p>
+                                        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Toko / reseller terdaftar</p>
                                     </button>
                                 </div>
                             </div>
 
                             {customerMode === 'member' && (
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Pilih Member / Partner</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Pilih Member / Partner</label>
                                     <select
                                         value={customerId}
                                         onChange={(event) => setCustomerId(event.target.value)}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
+                                        className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                     >
                                         <option value="">Pilih pelanggan member</option>
                                         {customers.map((customer) => (
@@ -462,12 +412,12 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                             )}
 
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-slate-700">Diskon</label>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Diskon</label>
                                 <div className="grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
                                     <select
                                         value={discountType}
                                         onChange={(event) => setDiscountType(event.target.value as DiscountType)}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
+                                        className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                     >
                                         <option value="nominal">Nominal</option>
                                         <option value="percent">Persen</option>
@@ -480,10 +430,10 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                         value={discountValueInput}
                                         onChange={(event) => setDiscountValueInput(event.target.value)}
                                         placeholder={discountType === 'percent' ? 'Contoh: 10' : 'Masukkan diskon nominal'}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                        className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                     />
                                 </div>
-                                <p className="mt-2 text-xs text-slate-500">
+                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                     {discountType === 'percent'
                                         ? 'Diskon persen dibatasi maksimal 100% dan otomatis dihitung dari subtotal.'
                                         : 'Diskon nominal langsung memotong subtotal belanja.'}
@@ -491,22 +441,22 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                             </div>
 
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-slate-700">Catatan</label>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Catatan</label>
                                 <textarea
                                     value={notes}
                                     onChange={(event) => setNotes(event.target.value)}
                                     placeholder="Opsional: catatan transaksi"
-                                    className="min-h-[96px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                    className="min-h-[96px] w-full rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-sm text-slate-700 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
                             </div>
 
-                            <div className="space-y-3 rounded-[22px] border border-slate-200/80 bg-slate-50/70 p-4">
+                            <div className="space-y-3 rounded-[22px] border border-slate-200/80 bg-slate-50/70 dark:bg-slate-800/70 p-4">
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Metode Pembayaran</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Metode Pembayaran</label>
                                     <select
                                         value={paymentMethod}
                                         onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
+                                        className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                     >
                                         <option value="cash">Cash</option>
                                         <option value="transfer">Transfer</option>
@@ -518,7 +468,7 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                 {paymentMethod === 'cash' ? (
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-slate-700">Uang Diterima</label>
+                                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Uang Diterima</label>
                                             <input
                                                 type="number"
                                                 min="0"
@@ -526,18 +476,18 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                                 value={cashReceived}
                                                 onChange={(event) => setCashReceived(event.target.value)}
                                                 placeholder="Contoh: 500000"
-                                                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                                className="vk-field"
                                             />
                                         </div>
                                         <div className="grid gap-3 sm:grid-cols-2">
-                                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Pembayaran</p>
-                                                <p className="mt-2 text-base font-semibold text-slate-800">
+                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
+                                                <p className="text-xs uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Pembayaran</p>
+                                                <p className="mt-2 text-base font-semibold text-slate-800 dark:text-slate-100">
                                                     {formatCurrency(cashReceivedValue)}
                                                 </p>
                                             </div>
-                                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Kembalian</p>
+                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
+                                                <p className="text-xs uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Kembalian</p>
                                                 <p className="mt-2 text-base font-semibold text-emerald-600">
                                                     {formatCurrency(changeAmount)}
                                                 </p>
@@ -550,7 +500,7 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                                         Pembayaran non-cash diproses sebesar total belanja tanpa hitung kembalian.
                                     </div>
                                 )}
@@ -558,49 +508,49 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
 
                             <div className="space-y-3">
                                 {cartDetails.length === 0 ? (
-                                    <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-5 py-10 text-center text-sm text-slate-500">
+                                    <div className="rounded-[22px] border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
                                         Keranjang masih kosong. Tambahkan barang dari katalog di sebelah kiri.
                                     </div>
                                 ) : (
                                     cartDetails.map((line) => (
-                                        <div key={line.item_id} className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4">
+                                        <div key={line.item_id} className="rounded-[22px] border border-slate-200/80 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 px-4 py-4">
                                             <div className="flex items-start justify-between gap-4">
                                                 <div>
-                                                    <p className="font-semibold text-slate-800">{line.item.nama_barang}</p>
-                                                    <p className="mt-1 text-sm text-slate-500">{formatCurrency(line.price)} / {line.item.satuan}</p>
+                                                    <p className="font-semibold text-slate-800 dark:text-slate-100">{line.item.nama_barang}</p>
+                                                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatCurrency(line.price)} / {line.item.satuan}</p>
                                                 </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => updateQty(line.item_id, 0)}
-                                                    className="rounded-full border border-slate-200 bg-white p-2 text-rose-500 transition hover:bg-rose-50"
+                                                    className="rounded-full border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-300 transition hover:bg-rose-100"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    Hapus
                                                 </button>
                                             </div>
 
                                             <div className="mt-4 flex items-center justify-between">
-                                                <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
-                                                    <button type="button" onClick={() => updateQty(line.item_id, line.quantity - 1)} className="rounded-full p-1 text-slate-500">
-                                                        <Minus className="h-4 w-4" />
+                                                <div className="flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1">
+                                                    <button type="button" onClick={() => updateQty(line.item_id, line.quantity - 1)} className="rounded-full px-2 py-1 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                                        −
                                                     </button>
-                                                    <span className="min-w-8 text-center text-sm font-semibold text-slate-800">{line.quantity}</span>
-                                                    <button type="button" onClick={() => updateQty(line.item_id, line.quantity + 1)} className="rounded-full p-1 text-slate-500">
-                                                        <Plus className="h-4 w-4" />
+                                                    <span className="min-w-8 text-center text-sm font-semibold text-slate-800 dark:text-slate-100">{line.quantity}</span>
+                                                    <button type="button" onClick={() => updateQty(line.item_id, line.quantity + 1)} className="rounded-full px-2 py-1 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                                        +
                                                     </button>
                                                 </div>
-                                                <p className="font-semibold text-slate-800">{formatCurrency(line.subtotal)}</p>
+                                                <p className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(line.subtotal)}</p>
                                             </div>
                                         </div>
                                     ))
                                 )}
                             </div>
 
-                            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5">
-                                <div className="flex items-center justify-between text-sm text-slate-500">
+                            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/70 dark:bg-slate-800/80 p-5">
+                                <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
                                     <span>Total Item</span>
                                     <span>{cartDetails.reduce((sum, line) => sum + line.quantity, 0)}</span>
                                 </div>
-                                <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+                                <div className="mt-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
                                     <span>Subtotal</span>
                                     <span>{formatCurrency(subtotal)}</span>
                                 </div>
@@ -609,8 +559,8 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                     <span>{formatCurrency(discountAmount)}</span>
                                 </div>
                                 <div className="mt-3 flex items-center justify-between">
-                                    <span className="text-sm font-semibold text-slate-700">Total Belanja</span>
-                                    <span className="text-2xl font-semibold tracking-[-0.05em] text-slate-800">
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Total Belanja</span>
+                                    <span className="text-2xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">
                                         {formatCurrency(total)}
                                     </span>
                                 </div>
@@ -621,7 +571,6 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                                 disabled={!canSubmit}
                                 className="vk-card-dark flex w-full items-center justify-center gap-3 px-5 py-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                <Store className="h-4 w-4" />
                                 {isSubmitting ? 'Menyimpan Transaksi...' : 'Simpan Transaksi Kasir'}
                             </button>
                         </div>
@@ -629,45 +578,7 @@ export default function SalesIndex({ customers, items, recentSales, summary }: S
                 </div>
             </div>
 
-            {showClearDialog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
-                    <div className="vk-card w-full max-w-md overflow-hidden">
-                        <div className="border-b border-slate-100 px-6 py-5">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-2xl bg-rose-50 p-3 text-rose-500">
-                                    <CircleAlert className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-slate-800">Clear Riwayat Transaksi</h3>
-                                    <p className="text-sm text-slate-500">Aksi ini akan membersihkan daftar transaksi terbaru.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-4 px-6 py-5">
-                            <p className="text-sm leading-6 text-slate-600">
-                                Riwayat penjualan yang tampil akan dihapus dari daftar transaksi terbaru.
-                                Stok barang tidak akan dikembalikan.
-                            </p>
-                            <div className="flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowClearDialog(false)}
-                                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={clearRecentSales}
-                                    className="rounded-full bg-rose-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-600"
-                                >
-                                    Ya, Clear Riwayat
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+
         </AuthenticatedLayout>
     );
 }

@@ -1,7 +1,6 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, Edit, Package, Plus, Trash2, Wrench } from 'lucide-react';
 
 type DamagedType = 'rusak' | 'expired' | 'hilang';
 
@@ -48,9 +47,9 @@ const parseNumberInput = (event: ChangeEvent<HTMLInputElement>) =>
     Number(event.target.value || 0);
 
 const badgeClass: Record<DamagedType, string> = {
-    rusak: 'bg-amber-100 text-amber-700',
-    expired: 'bg-rose-100 text-rose-600',
-    hilang: 'bg-slate-200 text-slate-700',
+    rusak: 'vk-status-warning',
+    expired: 'vk-status-danger',
+    hilang: 'bg-slate-200 text-slate-800',
 };
 
 export default function DamagedItemsIndex({ items, entries }: DamagedItemsPageProps) {
@@ -123,7 +122,6 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
                         onClick={() => openModal()}
                         className="vk-card-dark inline-flex items-center gap-3 px-5 py-3 text-sm font-semibold"
                     >
-                        <Plus className="h-4 w-4" />
                         New Report
                     </button>
                 </div>
@@ -134,75 +132,71 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
             <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-4">
                     <div className="vk-card p-5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Expired Goods</p>
-                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{summary.expired}</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Expired Goods</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{summary.expired}</p>
                     </div>
                     <div className="vk-card p-5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Damaged Items</p>
-                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{summary.damaged}</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Damaged Items</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{summary.damaged}</p>
                     </div>
                     <div className="vk-card p-5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Lost Items</p>
-                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800">{summary.lost}</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Lost Items</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-800 dark:text-slate-100">{summary.lost}</p>
                     </div>
                     <div className="vk-card p-5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Maintenance Note</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">Gunakan kolom catatan untuk tindakan perbaikan atau audit.</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Maintenance Note</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Gunakan kolom catatan untuk tindakan perbaikan atau audit.</p>
                     </div>
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[1.45fr_0.75fr]">
                     <div className="vk-card overflow-hidden">
-                        <div className="border-b border-slate-100 px-6 py-5">
-                            <h3 className="text-lg font-semibold text-slate-800">Recent Entries</h3>
-                            <p className="mt-1 text-sm text-slate-500">Riwayat laporan barang bermasalah terbaru.</p>
+                        <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-5">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Recent Entries</h3>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Riwayat laporan barang bermasalah terbaru.</p>
                         </div>
 
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {entries.length === 0 ? (
                                 <div className="px-6 py-16 text-center">
-                                    <Package className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-                                    <p className="text-lg font-semibold text-slate-700">Belum ada laporan</p>
-                                    <p className="mt-2 text-sm text-slate-500">Buat laporan saat ada barang rusak, expired, atau hilang.</p>
+                                    <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Belum ada laporan</p>
+                                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Buat laporan saat ada barang rusak, expired, atau hilang.</p>
                                 </div>
                             ) : (
                                 entries.map((entry) => (
                                     <div key={entry.id} className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center">
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
-                                            <Package className="h-5 w-5" />
-                                        </div>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${badgeClass[entry.kondisi]}`}>
                                                     {entry.kondisi}
                                                 </span>
-                                                <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                                                <span className="text-xs uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
                                                     {new Date(entry.date_reported).toLocaleDateString('id-ID')}
                                                 </span>
                                             </div>
-                                            <p className="mt-2 font-semibold text-slate-800">{entry.item.nama_barang}</p>
-                                            <p className="text-sm text-slate-500">{entry.catatan_maintenance || 'Belum ada catatan maintenance.'}</p>
+                                            <p className="mt-2 font-semibold text-slate-800 dark:text-slate-100">{entry.item.nama_barang}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">{entry.catatan_maintenance || 'Belum ada catatan maintenance.'}</p>
                                         </div>
                                         <div className="text-left lg:text-right">
-                                            <p className="font-semibold text-slate-800">
+                                            <p className="font-semibold text-slate-800 dark:text-slate-100">
                                                 {entry.quantity} {entry.item.satuan}
                                             </p>
-                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{entry.item.kode_barang}</p>
+                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{entry.item.kode_barang}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => openModal(entry)}
-                                                className="rounded-full border border-slate-200 bg-white p-2.5 text-amber-500 transition hover:border-amber-200 hover:bg-amber-50"
+                                                className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                                             >
-                                                <Edit className="h-4 w-4" />
+                                                Edit
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => handleDelete(entry)}
-                                                className="rounded-full border border-slate-200 bg-white p-2.5 text-rose-500 transition hover:border-rose-200 hover:bg-rose-50"
+                                                className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                Hapus
                                             </button>
                                         </div>
                                     </div>
@@ -213,23 +207,17 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
 
                     <div className="space-y-6">
                         <div className="vk-card p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-2xl bg-indigo-50 p-3 text-primary">
-                                    <Wrench className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-slate-800">Maintenance Notes</h3>
-                                    <p className="text-sm text-slate-500">Catat tindakan lanjutan untuk item bermasalah.</p>
-                                </div>
+                            <div>
+                                <h3 className="font-semibold text-slate-800 dark:text-slate-100">Maintenance Notes</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Catat tindakan lanjutan untuk item bermasalah.</p>
                             </div>
-                            <div className="mt-5 rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                            <div className="mt-5 rounded-[22px] border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 p-4 text-sm text-slate-500 dark:text-slate-400">
                                 {entries.find((entry) => entry.catatan_maintenance)?.catatan_maintenance || 'Belum ada maintenance note aktif.'}
                             </div>
                         </div>
 
                         <div className="vk-card-dark p-6">
                             <div className="flex items-center gap-3">
-                                <AlertTriangle className="h-5 w-5" />
                                 <h3 className="font-semibold">Loss Analysis</h3>
                             </div>
                             <div className="mt-6 space-y-3 text-sm text-white/75">
@@ -254,14 +242,14 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
                     <div className="vk-card w-full max-w-2xl overflow-hidden">
-                        <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                        <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
                             <div>
-                                <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800">
+                                <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800 dark:text-slate-100">
                                     {selectedEntry ? 'Edit Laporan' : 'Tambah Laporan'}
                                 </h3>
-                                <p className="mt-1 text-sm text-slate-500">Jumlah item yang dilaporkan akan mengurangi stok tersedia.</p>
+                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Jumlah item yang dilaporkan akan mengurangi stok tersedia.</p>
                             </div>
-                            <button type="button" onClick={closeModal} className="rounded-full border border-slate-200 bg-white p-2 text-slate-500">
+                            <button type="button" onClick={closeModal} className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-500 dark:text-slate-400">
                                 x
                             </button>
                         </div>
@@ -269,11 +257,11 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
                         <form onSubmit={submit} className="space-y-5 p-6">
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div className="md:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Barang</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Barang</label>
                                     <select
                                         value={form.item_id}
                                         onChange={(event) => setForm({ ...form, item_id: event.target.value ? Number(event.target.value) : '' })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-select"
                                         required
                                     >
                                         <option value="">Pilih barang</option>
@@ -285,11 +273,11 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Kondisi</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Kondisi</label>
                                     <select
                                         value={form.kondisi}
                                         onChange={(event) => setForm({ ...form, kondisi: event.target.value as DamagedType })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-select"
                                     >
                                         <option value="rusak">Rusak</option>
                                         <option value="expired">Expired</option>
@@ -297,36 +285,36 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Jumlah</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Jumlah</label>
                                     <input
                                         type="number"
                                         value={form.quantity}
                                         onChange={(event) => setForm({ ...form, quantity: parseNumberInput(event) })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-field"
                                         required
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Tanggal Laporan</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Tanggal Laporan</label>
                                     <input
                                         type="date"
                                         value={form.date_reported}
                                         onChange={(event) => setForm({ ...form, date_reported: event.target.value })}
-                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                        className="vk-field"
                                         required
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">Catatan Maintenance</label>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Catatan Maintenance</label>
                                     <textarea
                                         value={form.catatan_maintenance}
                                         onChange={(event) => setForm({ ...form, catatan_maintenance: event.target.value })}
-                                        className="min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
+                                        className="vk-textarea"
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-6">
-                                <button type="button" onClick={closeModal} className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
+                            <div className="flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-6">
+                                <button type="button" onClick={closeModal} className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400">
                                     Batal
                                 </button>
                                 <button type="submit" className="vk-card-dark px-5 py-3 text-sm font-semibold">

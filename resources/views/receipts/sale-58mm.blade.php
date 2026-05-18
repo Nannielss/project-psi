@@ -137,9 +137,6 @@
 <body>
     <div class="receipt">
         <div class="center block">
-            @if (!empty($branding['logo_url']))
-                <img src="{{ $branding['logo_url'] }}" alt="{{ $branding['business_name'] }}" class="brand-logo">
-            @endif
             <div class="brand">{{ strtoupper($branding['business_name'] ?? 'VELOCITY KINETIC') }}</div>
             <div class="subtle">{{ $branding['business_tagline'] ?? 'Warehouse POS & Inventory' }}</div>
             <div class="subtle">{{ $branding['business_address'] ?? 'Jl. Gudang Digital No. 58' }}</div>
@@ -200,15 +197,11 @@
                 <span class="label">Diskon</span>
                 <span class="value">
                     @if (($sale->discount_type ?? 'nominal') === 'percent')
-                        {{ rtrim(rtrim(number_format((float) ($sale->discount_value ?? 0), 2, ',', '.'), '0'), ',') }}%
+                        {{ rtrim(rtrim(number_format((float) ($sale->discount_value ?? 0), 2, ',', '.'), '0'), ',') }}% (Rp {{ number_format((float) ($sale->discount_amount ?? 0), 0, ',', '.') }})
                     @else
-                        Rp {{ number_format((float) ($sale->discount_value ?? 0), 0, ',', '.') }}
+                        Rp {{ number_format((float) ($sale->discount_amount ?? 0), 0, ',', '.') }}
                     @endif
                 </span>
-            </div>
-            <div class="row">
-                <span class="label">Potongan</span>
-                <span class="value">Rp {{ number_format((float) ($sale->discount_amount ?? 0), 0, ',', '.') }}</span>
             </div>
             <div class="row grand-total">
                 <span>Total</span>
@@ -228,7 +221,6 @@
 
         <div class="center thanks">
             <div>Terima kasih sudah berbelanja.</div>
-            <div class="subtle">Struk thermal 58mm, margin siap cetak.</div>
             <div class="subtle">Dicetak {{ $printedAt->timezone('Asia/Jakarta')->format('d/m/Y H:i') }} WIB</div>
         </div>
 

@@ -1,7 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import { ShieldCheck, UserCircle2 } from 'lucide-react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdateBrandingForm from './Partials/UpdateBrandingForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
@@ -44,7 +43,6 @@ export default function Edit({
 
                         <div className="vk-soft-panel flex items-center gap-4 px-5 py-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <ShieldCheck className="h-6 w-6" />
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-slate-700">Keamanan Akun</p>
@@ -72,7 +70,6 @@ export default function Edit({
                         <section className="vk-card px-6 py-6">
                             <div className="flex items-start gap-4">
                                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
-                                    <UserCircle2 className="h-6 w-6" />
                                 </div>
                                 <div className="space-y-2">
                                     <h2 className="text-lg font-semibold text-slate-800">Ringkasan Pengaturan</h2>

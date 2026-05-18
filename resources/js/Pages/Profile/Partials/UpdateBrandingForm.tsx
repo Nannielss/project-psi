@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Store } from 'lucide-react';
 import { toast } from 'sonner';
 
 type BrandingData = {
@@ -64,7 +63,9 @@ export default function UpdateBrandingForm({
                                         className="h-full w-full object-contain p-3"
                                     />
                                 ) : (
-                                    <Store className="h-9 w-9 text-slate-400" />
+                                    <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-400">
+                                        Logo
+                                    </div>
                                 )}
                             </div>
                             <p className="text-xs font-medium text-slate-500">
@@ -78,7 +79,6 @@ export default function UpdateBrandingForm({
                             </div>
                             <div className="flex flex-wrap items-center gap-3">
                                 <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="border-slate-300 bg-white text-slate-700 hover:bg-slate-100">
-                                    <ImagePlus className="mr-2 h-4 w-4" />
                                     Upload Logo
                                 </Button>
                                 {(logoPreview || branding.logo_url) && (
@@ -150,8 +150,7 @@ export default function UpdateBrandingForm({
 
                     <div className="flex items-center gap-4">
                         <Button type="submit" disabled={processing}>
-                            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simpan Branding
+                            {processing ? 'Menyimpan...' : 'Simpan Branding'}
                         </Button>
                     </div>
                 </form>

@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef, useState } from 'react';
-import { Camera, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Helper function to get default photo URL
@@ -103,7 +102,6 @@ export default function UpdateProfileInformation({
                                 onClick={() => fileInputRef.current?.click()}
                                 className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
                             >
-                                <Camera className="h-4 w-4" />
                             </button>
                         </div>
                         <div className="flex-1">
@@ -145,8 +143,7 @@ export default function UpdateProfileInformation({
 
                     <div className="flex items-center gap-4">
                         <Button type="submit" disabled={processing}>
-                            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simpan
+                            {processing ? 'Menyimpan...' : 'Simpan'}
                         </Button>
                         {recentlySuccessful && (
                             <p className="text-sm text-muted-foreground">

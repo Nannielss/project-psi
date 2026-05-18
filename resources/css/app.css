@@ -97,10 +97,17 @@
             linear-gradient(180deg, #fafcff 0%, #f5f7fb 45%, #f8fafc 100%);
         min-height: 100vh;
     }
+
+    .dark body {
+        background-image:
+            radial-gradient(circle at top left, rgba(99, 102, 241, 0.16), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.4), transparent 30%),
+            linear-gradient(180deg, #07090f 0%, #0d111b 48%, #090b11 100%);
+    }
 }
 
 /* Custom styles for Sonner toast - top-center position and larger size */
-@layer utilities {
+@layer components {
     [data-sonner-toaster] {
         top: 1rem !important;
         left: 50% !important;
@@ -122,20 +129,36 @@
         margin-top: 0.5rem !important;
     }
 
+    @media (max-width: 640px) {
+        [data-sonner-toaster] {
+            left: 1rem !important;
+            right: 1rem !important;
+            transform: none !important;
+        }
+
+        [data-sonner-toast] {
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 1rem 1rem !important;
+            font-size: 1rem !important;
+        }
+    }
+
     .vk-card {
-        @apply rounded-[26px] border border-slate-200/80 bg-white shadow-[0_18px_46px_-30px_rgba(71,85,105,0.2)] backdrop-blur;
+        @apply rounded-[26px] border border-slate-200 bg-white shadow-[0_24px_60px_-34px_rgba(15,23,42,0.28)] backdrop-blur dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_24px_70px_-38px_rgba(0,0,0,0.85)];
     }
 
     .vk-card-dark {
-        @apply rounded-[26px] border border-slate-400/10 bg-[linear-gradient(160deg,#5b6694_0%,#46527b_100%)] text-white shadow-[0_20px_48px_-30px_rgba(45,59,104,0.55)];
+        @apply rounded-[26px] border border-slate-400/10 bg-[linear-gradient(160deg,#56618f_0%,#3f4b75_100%)] text-white shadow-[0_22px_54px_-30px_rgba(45,59,104,0.65)] dark:border-indigo-400/20 dark:bg-[linear-gradient(160deg,#1e293b_0%,#111827_100%)];
     }
 
     .vk-chip {
-        @apply inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500;
+        @apply inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-400;
     }
 
     .vk-soft-panel {
-        @apply rounded-[24px] border border-slate-200/85 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)];
+        @apply rounded-[24px] border border-slate-200/85 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
     }
 
     .vk-tab-pill {
@@ -143,26 +166,77 @@
     }
 
     .vk-tab-pill-active {
-        @apply bg-white text-slate-800 shadow-[0_10px_26px_-18px_rgba(71,85,105,0.45)] ring-1 ring-slate-200;
+        @apply bg-white text-slate-900 shadow-[0_14px_34px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700;
     }
 
     .vk-tab-pill-idle {
-        @apply text-slate-600 hover:bg-white/70 hover:text-slate-800;
+        @apply text-slate-600 hover:bg-white/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100;
     }
 
     .vk-unit-badge {
-        @apply inline-flex items-center justify-center rounded-full bg-slate-200/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700;
+        @apply inline-flex items-center justify-center rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:bg-slate-800 dark:text-slate-200;
     }
 
     .vk-brand-frame {
-        @apply flex items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white shadow-[0_14px_32px_-24px_rgba(71,85,105,0.28)];
+        @apply flex items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white shadow-[0_14px_32px_-24px_rgba(71,85,105,0.28)] dark:border-slate-800 dark:bg-slate-900;
     }
 
     .vk-page-title {
-        @apply text-[1.85rem] font-semibold tracking-[-0.04em] text-slate-800;
+        @apply text-[1.85rem] font-semibold tracking-[-0.04em] text-slate-800 dark:text-slate-50;
     }
 
     .vk-page-copy {
-        @apply text-[0.9rem] leading-6 text-slate-500;
+        @apply text-[0.9rem] leading-6 text-slate-600 dark:text-slate-400;
+    }
+
+    .vk-field,
+    .vk-select,
+    .vk-textarea {
+        @apply w-full rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:bg-slate-900;
+    }
+
+    .vk-field,
+    .vk-select {
+        @apply h-12 px-4;
+    }
+
+    .vk-textarea {
+        @apply min-h-28 px-4 py-3;
+    }
+
+    .vk-icon-button {
+        @apply rounded-full border border-slate-200 bg-white p-2.5 transition dark:border-slate-700 dark:bg-slate-900;
+    }
+
+    .vk-icon-button-amber {
+        @apply rounded-full border border-slate-200 bg-white p-2.5 text-amber-500 transition hover:border-amber-200 hover:bg-amber-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-amber-950/30;
+    }
+
+    .vk-icon-button-rose {
+        @apply rounded-full border border-slate-200 bg-white p-2.5 text-rose-500 transition hover:border-rose-200 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-rose-950/30;
+    }
+
+    .vk-status-success {
+        @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300;
+    }
+
+    .vk-status-danger {
+        @apply bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300;
+    }
+
+    .vk-status-warning {
+        @apply bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300;
+    }
+
+    .vk-role-admin {
+        @apply border-transparent bg-indigo-600 text-white shadow-sm dark:bg-indigo-500;
+    }
+
+    .vk-role-petugas {
+        @apply border-transparent bg-sky-100 text-sky-800 shadow-sm dark:bg-sky-950/60 dark:text-sky-300;
+    }
+
+    .vk-role-kasir {
+        @apply border-transparent bg-amber-100 text-amber-800 shadow-sm dark:bg-amber-950/60 dark:text-amber-300;
     }
 }
