@@ -5,19 +5,21 @@ Aplikasi web berbasis Laravel, Inertia, React, dan TypeScript untuk mengelola pe
 ## Fitur Utama
 
 - Dashboard gudang dengan ringkasan stok, nilai inventaris, transaksi hari ini, dan restock terbaru
-- Master barang dengan warna indikator stok hijau, kuning, dan merah
+- Master barang dengan indikator stok (hijau, kuning, merah)
 - Manajemen stok masuk, stok keluar, dan penyesuaian manual
 - Barang rusak / expired yang otomatis memengaruhi stok
 - Supplier, pelanggan / reseller, dan lokasi penyimpanan
 - Barcode barang dan halaman cetak barcode
 - Kasir penjualan dengan:
-  - member / non-member
-  - diskon nominal atau persen
-  - metode pembayaran cash, transfer, QRIS, debit
-  - hitung uang diterima dan kembalian
-  - cetak struk thermal 58mm
-- Role akses `admin`, `petugas`, dan `kasir`
+  - Member / non-member
+  - Diskon nominal atau persen
+  - Metode pembayaran: cash, transfer, QRIS, debit
+  - Hitung uang diterima dan kembalian
+  - Cetak struk thermal 58mm
+- Riwayat transaksi lengkap dengan detail barang, pembeli, kasir, dan pembayaran
+- Role akses: `admin`, `petugas`, dan `kasir`
 - Branding usaha: nama toko, tagline, alamat, telepon, dan logo
+- Dark mode, light mode, dan system mode
 
 ## Tech Stack
 
@@ -27,7 +29,7 @@ Aplikasi web berbasis Laravel, Inertia, React, dan TypeScript untuk mengelola pe
 - React + TypeScript
 - Tailwind CSS
 - Vite
-- SQLite/MySQL
+- SQLite / MySQL
 
 ## Instalasi
 
@@ -47,39 +49,28 @@ Untuk build production:
 npm run build
 ```
 
-## Akun Dummy Seeder
+## Akun Default (Seeder)
 
-Password default mengikuti `ADMIN_DEFAULT_PASSWORD` di `.env` atau fallback `changeme`.
+Password default mengikuti `ADMIN_DEFAULT_PASSWORD` di `.env`, fallback ke `changeme`.
 
-- `admin`
-- `petugas`
-- `kasir`
+| Username | Role |
+|---|---|
+| `admin` | Admin |
+| `petugas` | Petugas Gudang |
+| `kasir` | Kasir |
 
-## Modul Utama
+## Modul
 
-- `/dashboard`
-- `/items`
-- `/stock-transactions`
-- `/damaged-items`
-- `/suppliers`
-- `/customers`
-- `/locations`
-- `/history`
-- `/barcode`
-- `/sales`
-- `/users`
-
-## Catatan Upload GitHub
-
-File berikut tidak ikut repository:
-
-- `.env`
-- `database/database.sqlite`
-- `storage/app/private/*`
-- `public/build`
-- `node_modules`
-- `vendor`
-
-## Lisensi
-
-Digunakan untuk kebutuhan pembelajaran dan pengembangan proyek sistem informasi.
+| Route | Deskripsi |
+|---|---|
+| `/dashboard` | Ringkasan stok dan transaksi |
+| `/items` | Master barang |
+| `/stock-transactions` | Transaksi stok masuk/keluar |
+| `/damaged-items` | Barang rusak / expired |
+| `/suppliers` | Data supplier |
+| `/customers` | Pelanggan / reseller |
+| `/locations` | Lokasi penyimpanan |
+| `/history` | Riwayat transaksi lengkap |
+| `/barcode` | Cetak barcode barang |
+| `/sales` | Kasir penjualan |
+| `/users` | Manajemen pengguna |
