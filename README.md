@@ -5,18 +5,21 @@ Aplikasi web berbasis Laravel, Inertia, React, dan TypeScript untuk mengelola pe
 ## Fitur Utama
 
 - Dashboard gudang dengan ringkasan stok, nilai inventaris, transaksi hari ini, dan restock terbaru
-- Master barang dengan kategori, lokasi penyimpanan, dan indikator stok (hijau, kuning, merah)
-- Manajemen stok masuk, stok keluar, dan penyesuaian manual
-- Barang rusak / expired yang otomatis memengaruhi stok
-- Supplier, pelanggan / reseller, dan lokasi penyimpanan
+- Master barang dengan kategori, lokasi penyimpanan, indikator stok, search, dan filter data
+- CRUD kategori barang agar data barang lebih rapi dan mudah dikelompokkan
+- Manajemen stok masuk, stok keluar, dan penyesuaian manual dengan filter tipe serta kategori
+- Barang rusak / expired yang otomatis memengaruhi stok, dilengkapi search dan filter kondisi
+- Supplier, pelanggan / reseller, dan lokasi penyimpanan dengan fitur pencarian
 - Barcode barang dan halaman cetak barcode
 - Kasir penjualan dengan:
+  - Search barang berdasarkan nama, kode, dan kategori
+  - Filter kategori, satuan, dan status stok
   - Member / non-member
   - Diskon nominal atau persen
   - Metode pembayaran: cash, transfer, QRIS, debit
   - Hitung uang diterima dan kembalian
   - Cetak struk thermal 58mm
-- Riwayat transaksi lengkap dengan detail barang, pembeli, kasir, dan pembayaran
+- Riwayat transaksi lengkap dengan detail barang, pembeli, kasir, pembayaran, search, dan filter
 - Role akses: `admin`, `petugas`, dan `kasir`
 - Branding usaha: nama toko, tagline, alamat, telepon, dan logo
 - Dark mode, light mode, dan system mode
@@ -65,6 +68,7 @@ Password default mengikuti `ADMIN_DEFAULT_PASSWORD` di `.env`, fallback ke `chan
 |---|---|
 | `/dashboard` | Ringkasan stok dan transaksi |
 | `/items` | Master barang |
+| `/categories` | Manajemen kategori barang |
 | `/stock-transactions` | Transaksi stok masuk/keluar |
 | `/damaged-items` | Barang rusak / expired |
 | `/suppliers` | Data supplier |
