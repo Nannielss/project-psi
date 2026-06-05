@@ -13,7 +13,8 @@ class BarcodeController extends Controller
     {
         return Inertia::render('Barcode/Index', [
             'items' => Item::query()
-                ->select('id', 'kode_barang', 'nama_barang', 'satuan', 'stok', 'harga_jual', 'location_id')
+                ->with('category:id,name,slug')
+                ->select('id', 'kode_barang', 'nama_barang', 'satuan', 'stok', 'harga_jual', 'location_id', 'item_category_id')
                 ->latest()
                 ->get(),
             'locations' => Location::query()

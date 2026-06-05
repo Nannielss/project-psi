@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\ItemCategoryController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\StockTransactionController;
 use App\Http\Controllers\SupplierController;
@@ -70,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('role:admin,petugas')->group(function () {
         Route::resource('items', ItemController::class)->except(['create', 'show', 'edit']);
+        Route::resource('categories', ItemCategoryController::class)->except(['create', 'show', 'edit']);
         Route::resource('suppliers', SupplierController::class)->except(['create', 'show', 'edit']);
         Route::resource('locations', LocationController::class)->except(['create', 'show', 'edit']);
         Route::resource('stock-transactions', StockTransactionController::class)->except(['create', 'show', 'edit']);

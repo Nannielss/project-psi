@@ -35,6 +35,19 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
     const [showModal, setShowModal] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [form, setForm] = useState<CustomerForm>(defaultForm);
+    const [search, setSearch] = useState('');
+
+    const filteredCustomers = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return customers.filter((customer) =>
+            customer.shop_name.toLowerCase().includes(keyword) ||
+            (customer.phone || '').toLowerCase().includes(keyword) ||
+            (customer.address || '').toLowerCase().includes(keyword) ||
+            customer.tier.toLowerCase().includes(keyword) ||
+            (customer.category || '').toLowerCase().includes(keyword),
+        );
+    }, [customers, search]);
 
     const retailCount = useMemo(() => customers.filter((customer) => customer.tier === 'retail').length, [customers]);
     const wholesaleCount = useMemo(() => customers.filter((customer) => customer.tier === 'wholesale').length, [customers]);
@@ -140,17 +153,18 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                 </div>
 
                 <div className="vk-card overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Daftar Mitra & Reseller</h3>
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Data toko, kontak, dan alamat pelanggan.</p>
                         </div>
-                        <button
-                            onClick={() => openModal()}
-                            className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                            Tambah Partner
-                        </button>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Cari toko, HP, alamat, tier..."
+                            className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 md:w-80"
+                        />
                     </div>
 
                     <div className="overflow-x-auto">
@@ -166,15 +180,15 @@ export default function CustomersIndex({ customers }: CustomersPageProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {customers.length === 0 ? (
+                                {filteredCustomers.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-16 text-center">
-                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Belum ada data pelanggan</p>
-                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Tambahkan toko atau reseller agar modul penjualan siap dipakai.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Pelanggan tidak ditemukan</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian.</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    customers.map((customer) => (
+                                    filteredCustomers.map((customer) => (
                                         <tr key={customer.id} className="hover:bg-slate-50/65 dark:hover:bg-slate-800/50">
                                             <td className="px-6 py-5">
                                                 <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">

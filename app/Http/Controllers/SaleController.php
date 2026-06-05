@@ -25,14 +25,16 @@ class SaleController extends Controller
                 ->orderBy('shop_name')
                 ->get(),
             'items' => Item::query()
-                ->select('id', 'kode_barang', 'nama_barang', 'satuan', 'stok', 'harga_jual', 'location_id')
+                ->with('category:id,name,slug')
+                ->select('id', 'kode_barang', 'nama_barang', 'satuan', 'stok', 'harga_jual', 'location_id', 'item_category_id')
                 ->where('stok', '>', 0)
                 ->orderBy('nama_barang')
                 ->get(),
             'recentSales' => Sale::with([
                 'customer:id,shop_name,tier,category',
                 'user:id,username',
-                'items.item:id,kode_barang,nama_barang,satuan',
+                'items.item:id,kode_barang,nama_barang,satuan,item_category_id',
+                'items.item.category:id,name,slug',
             ])->latest()->limit(12)->get(),
             'summary' => [
                 'sales_today' => (float) Sale::whereDate('created_at', today())->sum('total_amount'),
@@ -176,7 +178,8 @@ class SaleController extends Controller
             return $sale->load([
                 'customer:id,shop_name,tier,category',
                 'user:id,username',
-                'items.item:id,kode_barang,nama_barang,satuan',
+                'items.item:id,kode_barang,nama_barang,satuan,item_category_id',
+                'items.item.category:id,name,slug',
             ]);
         });
 
@@ -190,7 +193,8 @@ class SaleController extends Controller
         $sale->load([
             'customer:id,shop_name,phone,address',
             'user:id,username,name',
-            'items.item:id,kode_barang,nama_barang,satuan',
+            'items.item:id,kode_barang,nama_barang,satuan,item_category_id',
+            'items.item.category:id,name,slug',
         ]);
 
         return view('receipts.sale-58mm', [

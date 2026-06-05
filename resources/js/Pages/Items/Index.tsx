@@ -1,4 +1,4 @@
-﻿import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import Barcode from 'react-barcode';
@@ -6,6 +6,12 @@ import Barcode from 'react-barcode';
 type Location = {
     id: number;
     name: string;
+};
+
+type ItemCategory = {
+    id: number;
+    name: string;
+    slug: string;
 };
 
 type Item = {
@@ -17,6 +23,8 @@ type Item = {
     harga_grosir: number | string;
     harga_jual: number | string;
     location_id: number | null;
+    item_category_id: number | null;
+    category: ItemCategory | null;
 };
 
 type ItemForm = {
@@ -26,11 +34,13 @@ type ItemForm = {
     harga_grosir: number;
     harga_jual: number;
     location_id: number | '';
+    item_category_id: number | '';
 };
 
 type ItemsIndexProps = {
     items: Item[];
     locations: Location[];
+    categories: ItemCategory[];
 };
 
 type ItemTab = 'all' | 'available' | 'low';
@@ -42,6 +52,7 @@ const defaultForm: ItemForm = {
     harga_grosir: 0,
     harga_jual: 0,
     location_id: '',
+    item_category_id: '',
 };
 
 const parseNumberInput = (event: ChangeEvent<HTMLInputElement>) =>
@@ -54,7 +65,7 @@ const formatCurrency = (value: number | string) =>
         maximumFractionDigits: 0,
     }).format(Number(value));
 
-export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
+export default function ItemsIndex({ items, locations, categories }: ItemsIndexProps) {
     const page = usePage();
     const params = new URLSearchParams(page.url.split('?')[1] || '');
     const [showModal, setShowModal] = useState(false);
@@ -65,6 +76,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
     const [search, setSearch] = useState(params.get('search') || '');
     const [locationFilter, setLocationFilter] = useState(params.get('location') || 'all');
     const [unitFilter, setUnitFilter] = useState(params.get('unit') || 'all');
+    const [categoryFilter, setCategoryFilter] = useState(params.get('category') || 'all');
     const [form, setForm] = useState<ItemForm>(defaultForm);
 
     const unitOptions = useMemo(
@@ -76,20 +88,23 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
         return items.filter((item) => {
             const matchesSearch =
                 item.nama_barang.toLowerCase().includes(search.toLowerCase()) ||
-                item.kode_barang.toLowerCase().includes(search.toLowerCase());
+                item.kode_barang.toLowerCase().includes(search.toLowerCase()) ||
+                (item.category?.name || '').toLowerCase().includes(search.toLowerCase());
             const matchesLocation =
                 locationFilter === 'all' || String(item.location_id ?? '') === locationFilter;
             const matchesUnit =
                 unitFilter === 'all' || item.satuan.toUpperCase() === unitFilter;
+            const matchesCategory =
+                categoryFilter === 'all' || String(item.item_category_id ?? '') === categoryFilter;
 
             const matchesTab =
                 activeTab === 'all' ||
                 (activeTab === 'available' && item.stok > 10) ||
                 (activeTab === 'low' && item.stok <= 10);
 
-            return matchesSearch && matchesLocation && matchesUnit && matchesTab;
+            return matchesSearch && matchesLocation && matchesUnit && matchesCategory && matchesTab;
         });
-    }, [activeTab, items, locationFilter, search, unitFilter]);
+    }, [activeTab, categoryFilter, items, locationFilter, search, unitFilter]);
 
     const totalInventoryValue = useMemo(
         () => items.reduce((sum, item) => sum + item.stok * Number(item.harga_jual), 0),
@@ -108,10 +123,11 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                 harga_grosir: Number(item.harga_grosir),
                 harga_jual: Number(item.harga_jual),
                 location_id: item.location_id ?? '',
+                item_category_id: item.item_category_id ?? '',
             });
         } else {
             setSelectedItem(null);
-            setForm(defaultForm);
+            setForm({ ...defaultForm, item_category_id: categories[0]?.id ?? '' });
         }
 
         setShowModal(true);
@@ -151,11 +167,12 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
         setShowBarcodeModal(true);
     };
 
-    const activeFilterCount = [locationFilter !== 'all', unitFilter !== 'all'].filter(Boolean).length;
+    const activeFilterCount = [locationFilter !== 'all', unitFilter !== 'all', categoryFilter !== 'all'].filter(Boolean).length;
 
     const clearFilters = () => {
         setLocationFilter('all');
         setUnitFilter('all');
+        setCategoryFilter('all');
         setShowFilters(false);
     };
 
@@ -180,7 +197,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                         <button
                             type="button"
                             onClick={() => setShowFilters((current) => !current)}
-                            className="vk-soft-panel px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
+                            className="vk-soft-panel px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white dark:text-slate-100 dark:hover:bg-slate-800"
                         >
                             Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
                         </button>
@@ -219,7 +236,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
 
                 <section className="vk-card overflow-hidden">
                     <div className="flex flex-col gap-5 border-b border-slate-100 dark:border-slate-800 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-wrap items-center gap-2 rounded-full bg-slate-100/90 p-1.5">
+                        <div className="flex flex-wrap items-center gap-2 rounded-full bg-slate-100/90 p-1.5 dark:bg-slate-800/90">
                             <button type="button" onClick={() => setActiveTab('all')} className={tabClass('all')}>
                                 Semua Barang
                             </button>
@@ -237,20 +254,20 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Cari item atau kode barang..."
-                                className="h-12 w-full rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-500"
+                                className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                             />
                         </div>
                     </div>
 
                     {showFilters && (
                         <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 px-6 py-5">
-                            <div className="grid gap-4 lg:grid-cols-[220px_220px_auto]">
+                            <div className="grid gap-4 lg:grid-cols-[220px_220px_220px_auto]">
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Lokasi</label>
                                     <select
                                         value={locationFilter}
                                         onChange={(event) => setLocationFilter(event.target.value)}
-                                        className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm text-slate-700 outline-none"
+                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-950/70"
                                     >
                                         <option value="all">Semua Lokasi</option>
                                         {locations.map((location) => (
@@ -265,7 +282,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                     <select
                                         value={unitFilter}
                                         onChange={(event) => setUnitFilter(event.target.value)}
-                                        className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm text-slate-700 outline-none"
+                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-950/70"
                                     >
                                         <option value="all">Semua Unit</option>
                                         {unitOptions.map((unit) => (
@@ -275,11 +292,26 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                         ))}
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Kategori</label>
+                                    <select
+                                        value={categoryFilter}
+                                        onChange={(event) => setCategoryFilter(event.target.value)}
+                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-950/70"
+                                    >
+                                        <option value="all">Semua Kategori</option>
+                                        {categories.map((category) => (
+                                            <option key={category.id} value={String(category.id)}>
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="flex items-end justify-start gap-3">
                                     <button
                                         type="button"
                                         onClick={clearFilters}
-                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                                     >
                                         Reset Filter
                                     </button>
@@ -293,6 +325,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                             <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-[0.72rem] uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">Kode / Nama Item</th>
+                                    <th className="px-6 py-4 font-semibold">Kategori</th>
                                     <th className="px-6 py-4 font-semibold">Lokasi</th>
                                     <th className="px-6 py-4 font-semibold">Unit</th>
                                     <th className="px-6 py-4 font-semibold">Stok</th>
@@ -304,7 +337,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {filteredItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-16 text-center">
+                                        <td colSpan={8} className="px-6 py-16 text-center">
                                             <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Tidak ada barang yang cocok</p>
                                             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian atau filter tab.</p>
                                         </td>
@@ -331,6 +364,11 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                                 <td className="px-6 py-5">
                                                     <p className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{item.kode_barang}</p>
                                                     <p className="mt-2 font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</p>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <span className="inline-flex rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+                                                        {item.category?.name || 'Umum'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-sm text-slate-500 dark:text-slate-400">{location?.name || '-'}</td>
                                                 <td className="px-6 py-5">
@@ -416,9 +454,26 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                             type="text"
                                             value={form.nama_barang}
                                             onChange={(event) => setForm({ ...form, nama_barang: event.target.value })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                             required
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Kategori Barang</label>
+                                        <select
+                                            value={form.item_category_id}
+                                            onChange={(event) => setForm({ ...form, item_category_id: event.target.value ? Number(event.target.value) : '' })}
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
+                                            required
+                                        >
+                                            <option value="">Pilih kategori</option>
+                                            {categories.map((category) => (
+                                                <option key={category.id} value={category.id}>
+                                                    {category.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
 
                                     <div>
@@ -426,7 +481,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                         <select
                                             value={form.satuan}
                                             onChange={(event) => setForm({ ...form, satuan: event.target.value })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                         >
                                             <option value="pcs">PCS</option>
                                             <option value="kg">KG</option>
@@ -442,7 +497,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                             type="number"
                                             value={form.stok}
                                             onChange={(event) => setForm({ ...form, stok: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                             required
                                         />
                                     </div>
@@ -453,7 +508,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                             type="number"
                                             value={form.harga_grosir}
                                             onChange={(event) => setForm({ ...form, harga_grosir: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                             required
                                         />
                                     </div>
@@ -464,7 +519,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                             type="number"
                                             value={form.harga_jual}
                                             onChange={(event) => setForm({ ...form, harga_jual: parseNumberInput(event) })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                             required
                                         />
                                     </div>
@@ -474,7 +529,7 @@ export default function ItemsIndex({ items, locations }: ItemsIndexProps) {
                                         <select
                                             value={form.location_id}
                                             onChange={(event) => setForm({ ...form, location_id: event.target.value ? Number(event.target.value) : '' })}
-                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                            className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                                         >
                                             <option value="">Pilih lokasi</option>
                                             {locations.map((location) => (

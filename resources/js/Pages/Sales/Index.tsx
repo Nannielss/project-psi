@@ -20,6 +20,12 @@ type SaleItemOption = {
     stok: number;
     harga_jual: number | string;
     location_id: number | null;
+    item_category_id: number | null;
+    category: {
+        id: number;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 type RecentSale = {
@@ -87,6 +93,9 @@ export default function SalesIndex({ customers, items, summary }: SalesPageProps
     const printFrameRef = useRef<HTMLIFrameElement | null>(null);
     const lastPrintedReceipt = useRef<string | null>(null);
     const [search, setSearch] = useState(params.get('search') || '');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [unitFilter, setUnitFilter] = useState('all');
+    const [stockFilter, setStockFilter] = useState<'all' | 'safe' | 'low'>('all');
     const [customerMode, setCustomerMode] = useState<CustomerMode>('non_member');
     const [customerId, setCustomerId] = useState<string>('');
     const [discountType, setDiscountType] = useState<DiscountType>('nominal');
@@ -97,12 +106,30 @@ export default function SalesIndex({ customers, items, summary }: SalesPageProps
     const [cart, setCart] = useState<CartLine[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const categoryOptions = useMemo(
+        () => Array.from(new Map(items.map((item) => [item.item_category_id ?? 'umum', item.category?.name || 'Umum'])).entries()),
+        [items],
+    );
+    const unitOptions = useMemo(() => Array.from(new Set(items.map((item) => item.satuan.toUpperCase()))).sort(), [items]);
+
     const filteredItems = useMemo(() => {
-        return items.filter((item) =>
-            item.nama_barang.toLowerCase().includes(search.toLowerCase()) ||
-            item.kode_barang.toLowerCase().includes(search.toLowerCase()),
-        );
-    }, [items, search]);
+        const keyword = search.toLowerCase();
+
+        return items.filter((item) => {
+            const matchesSearch =
+                item.nama_barang.toLowerCase().includes(keyword) ||
+                item.kode_barang.toLowerCase().includes(keyword) ||
+                (item.category?.name || 'Umum').toLowerCase().includes(keyword);
+            const matchesCategory = categoryFilter === 'all' || String(item.item_category_id ?? 'umum') === categoryFilter;
+            const matchesUnit = unitFilter === 'all' || item.satuan.toUpperCase() === unitFilter;
+            const matchesStock =
+                stockFilter === 'all' ||
+                (stockFilter === 'safe' && item.stok > 10) ||
+                (stockFilter === 'low' && item.stok <= 10);
+
+            return matchesSearch && matchesCategory && matchesUnit && matchesStock;
+        });
+    }, [categoryFilter, items, search, stockFilter, unitFilter]);
 
     const cartDetails = useMemo(() => {
         return cart
@@ -305,14 +332,41 @@ export default function SalesIndex({ customers, items, summary }: SalesPageProps
                     <div className="space-y-6">
                         <section className="vk-card overflow-hidden">
                             <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-5">
-                                <div className="relative max-w-md">
+                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_150px_150px]">
                                     <input
                                         type="text"
                                         value={search}
                                         onChange={(event) => setSearch(event.target.value)}
-                                        placeholder="Cari barang atau kode..."
-                                        className="vk-field rounded-full pl-11 pr-4"
+                                        placeholder="Cari barang, kode, atau kategori..."
+                                        className="vk-field rounded-full px-4"
                                     />
+                                    <select
+                                        value={categoryFilter}
+                                        onChange={(event) => setCategoryFilter(event.target.value)}
+                                        className="h-12 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    >
+                                        <option value="all">Semua Kategori</option>
+                                        {categoryOptions.map(([id, name]) => (
+                                            <option key={String(id)} value={String(id)}>{name}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={unitFilter}
+                                        onChange={(event) => setUnitFilter(event.target.value)}
+                                        className="h-12 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    >
+                                        <option value="all">Semua Unit</option>
+                                        {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                                    </select>
+                                    <select
+                                        value={stockFilter}
+                                        onChange={(event) => setStockFilter(event.target.value as 'all' | 'safe' | 'low')}
+                                        className="h-12 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    >
+                                        <option value="all">Semua Stok</option>
+                                        <option value="safe">Stok Aman</option>
+                                        <option value="low">Stok Tipis</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -325,7 +379,10 @@ export default function SalesIndex({ customers, items, summary }: SalesPageProps
                                 ) : (
                                     filteredItems.map((item) => (
                                         <div key={item.id} className="rounded-[22px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.16)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(15,23,42,0.22)]">
-                                            <p className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{item.kode_barang}</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                <p className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{item.kode_barang}</p>
+                                                <p className="inline-flex rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">{item.category?.name || 'Umum'}</p>
+                                            </div>
                                             <h3 className="mt-3 text-lg font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</h3>
                                             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                                                 Stok: {item.stok} {item.satuan}

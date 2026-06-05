@@ -34,7 +34,7 @@ class HistoryController extends Controller
                 ->latest()
                 ->limit(30)
                 ->get(),
-            'sales' => Sale::with('user:id,username', 'customer:id,shop_name,tier', 'items.item:id,kode_barang,nama_barang,satuan')
+            'sales' => Sale::with('user:id,username', 'customer:id,shop_name,tier', 'items.item:id,kode_barang,nama_barang,satuan,item_category_id', 'items.item.category:id,name,slug')
                 ->latest()
                 ->limit(50)
                 ->get(),

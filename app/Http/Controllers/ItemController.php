@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
+use App\Models\ItemCategory;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,11 +12,14 @@ class ItemController extends Controller
 {
     public function index()
     {
-        $items = Item::with('location')->latest()->get();
+        $items = Item::with(['location', 'category'])->latest()->get();
         $locations = Location::all();
+        $categories = ItemCategory::query()->orderBy('name')->get();
+
         return Inertia::render('Items/Index', [
             'items' => $items,
-            'locations' => $locations
+            'locations' => $locations,
+            'categories' => $categories,
         ]);
     }
 
@@ -23,6 +27,7 @@ class ItemController extends Controller
     {
         $validated = $request->validate([
             'nama_barang' => 'required|string|max:255',
+            'item_category_id' => 'required|exists:item_categories,id',
             'satuan' => 'required|string|max:50',
             'stok' => 'required|integer|min:0',
             'harga_grosir' => 'required|numeric|min:0',
@@ -39,6 +44,7 @@ class ItemController extends Controller
     {
         $validated = $request->validate([
             'nama_barang' => 'required|string|max:255',
+            'item_category_id' => 'required|exists:item_categories,id',
             'satuan' => 'required|string|max:50',
             'stok' => 'required|integer|min:0',
             'harga_grosir' => 'required|numeric|min:0',

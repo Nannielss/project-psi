@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Customer;
 use App\Models\DamagedItem;
 use App\Models\Item;
+use App\Models\ItemCategory;
 use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -62,6 +63,19 @@ class DatabaseSeeder extends Seeder
                 ['name' => 'Fresh Mart Distribution', 'phone' => '0819-7150-6000', 'address' => 'Jl. Jababeka Selatan Blok C-12'],
             ])->each(fn (array $supplier) => Supplier::updateOrCreate(['name' => $supplier['name']], $supplier));
 
+            $categories = collect([
+                ['name' => 'Umum', 'slug' => 'umum', 'description' => 'Kategori default untuk barang umum.'],
+                ['name' => 'Bahan Baku', 'slug' => 'bahan-baku', 'description' => 'Bahan utama produksi atau penjualan.'],
+                ['name' => 'Minuman & Sirup', 'slug' => 'minuman-sirup', 'description' => 'Produk minuman, sirup, dan pendukung beverage.'],
+                ['name' => 'Kemasan', 'slug' => 'kemasan', 'description' => 'Cup, paper bag, dus, dan kebutuhan packing.'],
+                ['name' => 'Frozen & Cold Storage', 'slug' => 'frozen-cold-storage', 'description' => 'Barang yang memerlukan penyimpanan dingin.'],
+                ['name' => 'Elektronik', 'slug' => 'elektronik', 'description' => 'Aksesoris dan barang elektronik.'],
+            ])->mapWithKeys(function (array $category) {
+                $record = ItemCategory::updateOrCreate(['slug' => $category['slug']], $category);
+
+                return [$record->name => $record];
+            });
+
             $customers = collect([
                 [
                     'shop_name' => 'Toko Makmur Jaya',
@@ -112,6 +126,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 80,
                     'harga_grosir' => 110000,
                     'harga_jual' => 145000,
+                    'item_category_id' => $categories['Bahan Baku']->id,
                     'location_id' => $locations['Gudang Utama']->id,
                 ],
                 [
@@ -121,6 +136,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 45,
                     'harga_grosir' => 48000,
                     'harga_jual' => 69000,
+                    'item_category_id' => $categories['Minuman & Sirup']->id,
                     'location_id' => $locations['Rak A1']->id,
                 ],
                 [
@@ -130,6 +146,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 30,
                     'harga_grosir' => 185000,
                     'harga_jual' => 235000,
+                    'item_category_id' => $categories['Kemasan']->id,
                     'location_id' => $locations['Area Packing']->id,
                 ],
                 [
@@ -139,6 +156,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 18,
                     'harga_grosir' => 95000,
                     'harga_jual' => 135000,
+                    'item_category_id' => $categories['Frozen & Cold Storage']->id,
                     'location_id' => $locations['Cold Storage']->id,
                 ],
                 [
@@ -148,6 +166,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 24,
                     'harga_grosir' => 76000,
                     'harga_jual' => 98000,
+                    'item_category_id' => $categories['Kemasan']->id,
                     'location_id' => $locations['Area Packing']->id,
                 ],
                 [
@@ -157,6 +176,7 @@ class DatabaseSeeder extends Seeder
                     'stok' => 60,
                     'harga_grosir' => 22000,
                     'harga_jual' => 39000,
+                    'item_category_id' => $categories['Elektronik']->id,
                     'location_id' => $locations['Rak A1']->id,
                 ],
             ])->mapWithKeys(function (array $item) {

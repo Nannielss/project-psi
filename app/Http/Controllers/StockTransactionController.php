@@ -14,15 +14,17 @@ class StockTransactionController extends Controller
     public function index()
     {
         return Inertia::render('StockTransactions/Index', [
-            'items' => Item::orderBy('nama_barang')->get([
+            'items' => Item::with('category:id,name,slug')->orderBy('nama_barang')->get([
                 'id',
                 'kode_barang',
                 'nama_barang',
                 'stok',
                 'satuan',
+                'item_category_id',
             ]),
             'transactions' => StockTransaction::with([
-                'item:id,kode_barang,nama_barang,satuan',
+                'item:id,kode_barang,nama_barang,satuan,item_category_id',
+                'item.category:id,name,slug',
                 'user:id,username',
             ])->latest()->get(),
         ]);

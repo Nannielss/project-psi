@@ -17,6 +17,7 @@ import {
     ShoppingBag,
     SquareUserRound,
     Sun,
+    Tags,
     Truck,
     Users,
     X,
@@ -112,6 +113,13 @@ export default function AuthenticatedLayout({
                 href: route('items.index'),
                 active: route().current('items.*'),
                 icon: Package,
+                roles: roleAccess.warehouse,
+            },
+            {
+                label: 'Kategori Barang',
+                href: route('categories.index'),
+                active: route().current('categories.*'),
+                icon: Tags,
                 roles: roleAccess.warehouse,
             },
             {

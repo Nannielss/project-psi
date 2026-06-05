@@ -1,4 +1,4 @@
-﻿import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 
@@ -10,6 +10,12 @@ type Item = {
     nama_barang: string;
     stok: number;
     satuan: string;
+    item_category_id: number | null;
+    category: {
+        id: number;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 type TransactionUser = {
@@ -22,6 +28,12 @@ type TransactionItem = {
     kode_barang: string;
     nama_barang: string;
     satuan: string;
+    item_category_id: number | null;
+    category: {
+        id: number;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 type StockTransaction = {
@@ -82,6 +94,32 @@ export default function StockTransactionsIndex({ items, transactions }: StockTra
     const [showModal, setShowModal] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<StockTransaction | null>(null);
     const [form, setForm] = useState<TransactionForm>(defaultForm);
+    const [search, setSearch] = useState('');
+    const [typeFilter, setTypeFilter] = useState<'all' | StockTransactionType>('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+
+    const categoryOptions = useMemo(
+        () => Array.from(new Map(items.map((item) => [item.item_category_id ?? 'umum', item.category?.name || 'Umum'])).entries()),
+        [items],
+    );
+
+    const filteredTransactions = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return transactions.filter((transaction) => {
+            const matchesSearch =
+                transaction.item.nama_barang.toLowerCase().includes(keyword) ||
+                transaction.item.kode_barang.toLowerCase().includes(keyword) ||
+                transaction.user.username.toLowerCase().includes(keyword) ||
+                (transaction.remarks || '').toLowerCase().includes(keyword) ||
+                typeLabels[transaction.type].toLowerCase().includes(keyword) ||
+                (transaction.item.category?.name || 'Umum').toLowerCase().includes(keyword);
+            const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+            const matchesCategory = categoryFilter === 'all' || String(transaction.item.item_category_id ?? 'umum') === categoryFilter;
+
+            return matchesSearch && matchesType && matchesCategory;
+        });
+    }, [categoryFilter, search, transactions, typeFilter]);
 
     const selectedItem = useMemo(
         () => items.find((item) => item.id === form.item_id) ?? null,
@@ -178,12 +216,35 @@ export default function StockTransactionsIndex({ items, transactions }: StockTra
                             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Riwayat Transaksi Stok</h3>
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Catat stok masuk, keluar, dan penyesuaian barang.</p>
                         </div>
-                        <button
-                            onClick={() => openModal()}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200"
-                        >
-                            Tambah Transaksi
-                        </button>
+                        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Cari barang, kode, petugas, catatan..."
+                                className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 md:w-80"
+                            />
+                            <select
+                                value={typeFilter}
+                                onChange={(event) => setTypeFilter(event.target.value as 'all' | StockTransactionType)}
+                                className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">Semua Tipe</option>
+                                <option value="in">Stok Masuk</option>
+                                <option value="out">Stok Keluar</option>
+                                <option value="adjustment">Penyesuaian</option>
+                            </select>
+                            <select
+                                value={categoryFilter}
+                                onChange={(event) => setCategoryFilter(event.target.value)}
+                                className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">Semua Kategori</option>
+                                {categoryOptions.map(([id, name]) => (
+                                    <option key={String(id)} value={String(id)}>{name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -200,22 +261,24 @@ export default function StockTransactionsIndex({ items, transactions }: StockTra
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {transactions.length === 0 ? (
+                                {filteredTransactions.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-16 text-center">
-                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Belum ada transaksi stok</p>
-                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Mulai catat restock atau stok keluar dari tombol di atas.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Transaksi stok tidak ditemukan</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah search atau filter tipe transaksi.</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    transactions.map((transaction) => (
+                                    filteredTransactions.map((transaction) => (
                                         <tr key={transaction.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/65 dark:bg-slate-800/65">
                                             <td className="px-6 py-5 text-sm text-slate-500 dark:text-slate-400">
                                                 {new Date(transaction.created_at).toLocaleString('id-ID')}
                                             </td>
                                             <td className="px-6 py-5">
                                                 <p className="font-semibold text-slate-800 dark:text-slate-100">{transaction.item.nama_barang}</p>
-                                                <p className="text-xs text-slate-400 dark:text-slate-500">{transaction.item.kode_barang}</p>
+                                                <p className="text-xs text-slate-400 dark:text-slate-500">
+                                                    {transaction.item.kode_barang} · {transaction.item.category?.name || 'Umum'}
+                                                </p>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${typeStyles[transaction.type]}`}>
@@ -270,7 +333,7 @@ export default function StockTransactionsIndex({ items, transactions }: StockTra
                                         <option value="">Pilih barang</option>
                                         {items.map((item) => (
                                             <option key={item.id} value={item.id}>
-                                                {item.kode_barang} - {item.nama_barang} (stok {item.stok} {item.satuan})
+                                                {item.kode_barang} - {item.nama_barang} · {item.category?.name || 'Umum'} (stok {item.stok} {item.satuan})
                                             </option>
                                         ))}
                                     </select>

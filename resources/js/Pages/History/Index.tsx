@@ -12,6 +12,11 @@ type Item = {
     kode_barang: string;
     nama_barang: string;
     satuan: string;
+    category?: {
+        id: number;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 type SaleItem = {
@@ -78,6 +83,9 @@ const formatCurrency = (value: number | string) =>
 export default function HistoryIndex({ summary, restocks, adjustments, sales }: HistoryProps) {
     const [activeTab, setActiveTab] = useState<TabKey>('sales');
     const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null);
+    const [search, setSearch] = useState('');
+    const [paymentFilter, setPaymentFilter] = useState('all');
+    const [customerModeFilter, setCustomerModeFilter] = useState<'all' | 'member' | 'non_member'>('all');
 
     const toggleExpand = (id: number) => {
         setExpandedSaleId((prev) => (prev === id ? null : id));
@@ -110,6 +118,55 @@ export default function HistoryIndex({ summary, restocks, adjustments, sales }: 
             status: 'adjustment',
         })),
     [adjustments]);
+
+    const filteredSales = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return sales.filter((sale) => {
+            const itemText = sale.items
+                .map((line) => `${line.item?.nama_barang || ''} ${line.item?.kode_barang || ''} ${line.item?.category?.name || ''}`)
+                .join(' ')
+                .toLowerCase();
+            const matchesSearch =
+                `sal-${sale.id}`.includes(keyword) ||
+                (sale.customer?.shop_name || 'walk-in customer').toLowerCase().includes(keyword) ||
+                (sale.user?.username || '').toLowerCase().includes(keyword) ||
+                sale.payment_method.toLowerCase().includes(keyword) ||
+                sale.customer_mode.toLowerCase().includes(keyword) ||
+                (sale.notes || '').toLowerCase().includes(keyword) ||
+                itemText.includes(keyword);
+            const matchesPayment = paymentFilter === 'all' || sale.payment_method === paymentFilter;
+            const matchesCustomerMode = customerModeFilter === 'all' || sale.customer_mode === customerModeFilter;
+
+            return matchesSearch && matchesPayment && matchesCustomerMode;
+        });
+    }, [customerModeFilter, paymentFilter, sales, search]);
+
+    const filteredRestockRows = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return restockRows.filter((row) =>
+            row.id.toLowerCase().includes(keyword) ||
+            row.title.toLowerCase().includes(keyword) ||
+            row.kode.toLowerCase().includes(keyword) ||
+            row.subtitle.toLowerCase().includes(keyword) ||
+            row.remarks.toLowerCase().includes(keyword) ||
+            row.status.toLowerCase().includes(keyword),
+        );
+    }, [restockRows, search]);
+
+    const filteredAdjustmentRows = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return adjustmentRows.filter((row) =>
+            row.id.toLowerCase().includes(keyword) ||
+            row.title.toLowerCase().includes(keyword) ||
+            row.kode.toLowerCase().includes(keyword) ||
+            row.subtitle.toLowerCase().includes(keyword) ||
+            row.remarks.toLowerCase().includes(keyword) ||
+            row.status.toLowerCase().includes(keyword),
+        );
+    }, [adjustmentRows, search]);
 
     const tabClass = (tab: TabKey) =>
         [
@@ -176,10 +233,41 @@ export default function HistoryIndex({ summary, restocks, adjustments, sales }: 
                 </div>
 
                 <div className="vk-card overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Audit Trace & Logs</h3>
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Tampilan riwayat transaksi berdasarkan kategori aktivitas.</p>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_170px_170px] xl:w-[720px]">
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Cari invoice, barang, pembeli, kasir, catatan..."
+                                className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                            />
+                            <select
+                                value={paymentFilter}
+                                onChange={(event) => setPaymentFilter(event.target.value)}
+                                disabled={activeTab !== 'sales'}
+                                className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">Semua Bayar</option>
+                                <option value="cash">Cash</option>
+                                <option value="transfer">Transfer</option>
+                                <option value="qris">QRIS</option>
+                                <option value="debit">Debit</option>
+                            </select>
+                            <select
+                                value={customerModeFilter}
+                                onChange={(event) => setCustomerModeFilter(event.target.value as 'all' | 'member' | 'non_member')}
+                                disabled={activeTab !== 'sales'}
+                                className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">Semua Pembeli</option>
+                                <option value="member">Member</option>
+                                <option value="non_member">Non-member</option>
+                            </select>
                         </div>
                     </div>
 
@@ -200,15 +288,15 @@ export default function HistoryIndex({ summary, restocks, adjustments, sales }: 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {sales.length === 0 ? (
+                                    {filteredSales.length === 0 ? (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-16 text-center">
-                                                <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Belum ada data penjualan</p>
-                                                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Transaksi kasir akan muncul di sini secara otomatis.</p>
+                                                <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Data penjualan tidak ditemukan</p>
+                                                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah search atau filter.</p>
                                             </td>
                                         </tr>
                                     ) : (
-                                        sales.map((sale) => (
+                                        filteredSales.map((sale) => (
                                             <>
                                                 <tr
                                                     key={sale.id}
@@ -275,7 +363,7 @@ export default function HistoryIndex({ summary, restocks, adjustments, sales }: 
                                                                                             {line.item?.nama_barang || 'Item'}
                                                                                         </p>
                                                                                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                            {line.item?.kode_barang} · {line.quantity} {line.item?.satuan}
+                                                                                            {line.item?.kode_barang} · {line.item?.category?.name || 'Umum'} · {line.quantity} {line.item?.satuan}
                                                                                         </p>
                                                                                     </div>
                                                                                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -364,15 +452,15 @@ export default function HistoryIndex({ summary, restocks, adjustments, sales }: 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {(activeTab === 'restock' ? restockRows : adjustmentRows).length === 0 ? (
+                                    {(activeTab === 'restock' ? filteredRestockRows : filteredAdjustmentRows).length === 0 ? (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-16 text-center">
-                                                <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Belum ada data riwayat</p>
-                                                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Aktivitas transaksi akan muncul di tabel ini secara otomatis.</p>
+                                                <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Data riwayat tidak ditemukan</p>
+                                                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian.</p>
                                             </td>
                                         </tr>
                                     ) : (
-                                        (activeTab === 'restock' ? restockRows : adjustmentRows).map((row) => (
+                                        (activeTab === 'restock' ? filteredRestockRows : filteredAdjustmentRows).map((row) => (
                                             <tr key={row.id} className="hover:bg-slate-50/65 dark:hover:bg-slate-800/50">
                                                 <td className="px-6 py-5">
                                                     <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">

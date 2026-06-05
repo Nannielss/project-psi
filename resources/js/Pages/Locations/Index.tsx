@@ -1,4 +1,4 @@
-﻿import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 
@@ -27,6 +27,17 @@ export default function LocationsIndex({ locations }: LocationsPageProps) {
     const [showModal, setShowModal] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
     const [form, setForm] = useState<LocationForm>(defaultForm);
+    const [search, setSearch] = useState('');
+
+    const filteredLocations = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return locations.filter((location) =>
+            location.name.toLowerCase().includes(keyword) ||
+            (location.description || '').toLowerCase().includes(keyword) ||
+            String(location.items_count).includes(keyword),
+        );
+    }, [locations, search]);
 
     const openModal = (location: Location | null = null) => {
         setSelectedLocation(location);
@@ -113,12 +124,13 @@ export default function LocationsIndex({ locations }: LocationsPageProps) {
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Kelola lokasi penyimpanan barang dalam struktur yang rapi.</p>
                         </div>
 
-                        <button
-                            onClick={() => openModal()}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200"
-                        >
-                            Tambah Lokasi
-                        </button>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Cari lokasi, deskripsi..."
+                            className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 md:w-72"
+                        />
                     </div>
 
                     <div className="overflow-x-auto">
@@ -132,15 +144,15 @@ export default function LocationsIndex({ locations }: LocationsPageProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {locations.length === 0 ? (
+                                {filteredLocations.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="px-6 py-16 text-center">
-                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Belum ada lokasi penyimpanan</p>
-                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Tambahkan lokasi untuk memetakan stok secara lebih presisi.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Lokasi tidak ditemukan</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian.</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    locations.map((location) => (
+                                    filteredLocations.map((location) => (
                                         <tr key={location.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/65 dark:bg-slate-800/65">
                                             <td className="px-6 py-5 font-semibold text-slate-800 dark:text-slate-100">{location.name}</td>
                                             <td className="px-6 py-5 text-slate-500 dark:text-slate-400">{location.description || '-'}</td>

@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 
@@ -29,6 +29,17 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
     const [showModal, setShowModal] = useState(false);
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
     const [form, setForm] = useState<SupplierForm>(defaultForm);
+    const [search, setSearch] = useState('');
+
+    const filteredSuppliers = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return suppliers.filter((supplier) =>
+            supplier.name.toLowerCase().includes(keyword) ||
+            (supplier.phone || '').toLowerCase().includes(keyword) ||
+            (supplier.address || '').toLowerCase().includes(keyword),
+        );
+    }, [search, suppliers]);
 
     const openModal = (supplier: Supplier | null = null) => {
         setSelectedSupplier(supplier);
@@ -116,12 +127,13 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Kelola data pemasok barang gudang dalam satu panel yang rapi.</p>
                         </div>
 
-                        <button
-                            onClick={() => openModal()}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                            Tambah Supplier
-                        </button>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Cari supplier, no HP, alamat..."
+                            className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 md:w-72"
+                        />
                     </div>
 
                     <div className="overflow-x-auto">
@@ -135,15 +147,15 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {suppliers.length === 0 ? (
+                                {filteredSuppliers.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="px-6 py-16 text-center">
-                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Belum ada supplier</p>
-                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Tambahkan pemasok agar proses restock lebih terstruktur.</p>
+                                            <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Supplier tidak ditemukan</p>
+                                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah kata kunci pencarian.</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    suppliers.map((supplier) => (
+                                    filteredSuppliers.map((supplier) => (
                                         <tr key={supplier.id} className="hover:bg-slate-50/65 dark:hover:bg-slate-800/50">
                                             <td className="px-6 py-5 font-semibold text-slate-800 dark:text-slate-100">{supplier.name}</td>
                                             <td className="px-6 py-5 text-slate-600 dark:text-slate-400">{supplier.phone || '-'}</td>

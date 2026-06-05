@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import Barcode from 'react-barcode';
@@ -16,6 +16,12 @@ type Item = {
     stok: number;
     harga_jual: number | string;
     location_id: number | null;
+    item_category_id: number | null;
+    category: {
+        id: number;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 type BarcodePageProps = {
@@ -41,7 +47,8 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
         return items.filter((item) => {
             const matchesSearch =
                 item.nama_barang.toLowerCase().includes(search.toLowerCase()) ||
-                item.kode_barang.toLowerCase().includes(search.toLowerCase());
+                item.kode_barang.toLowerCase().includes(search.toLowerCase()) ||
+                (item.category?.name || '').toLowerCase().includes(search.toLowerCase());
 
             const matchesLocation =
                 locationFilter === 'all' || String(item.location_id ?? '') === locationFilter;
@@ -131,14 +138,14 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
                                     type="text"
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Cari nama barang atau kode..."
-                                    className="h-12 w-full rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-500"
+                                    placeholder="Cari nama barang, kode, atau kategori..."
+                                    className="h-12 w-full rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
                             </div>
                             <select
                                 value={locationFilter}
                                 onChange={(event) => setLocationFilter(event.target.value)}
-                                className="h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                                className="h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 text-sm text-slate-700 dark:text-slate-100 outline-none"
                             >
                                 <option value="all">Semua Lokasi</option>
                                 {locations.map((location) => (
@@ -172,7 +179,7 @@ export default function BarcodeIndex({ items, locations }: BarcodePageProps) {
                                         <p className="eyebrow text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Inventory Barcode</p>
                                         <h3 className="title mt-2 text-lg font-semibold text-slate-800 dark:text-slate-100">{item.nama_barang}</h3>
                                         <p className="meta mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                            {item.kode_barang} | {location?.name || 'Tanpa lokasi'}
+                                            {item.kode_barang} | {item.category?.name || 'Umum'} | {location?.name || 'Tanpa lokasi'}
                                         </p>
                                         <div className="barcode-wrap mt-5 flex justify-center rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 px-3 py-4">
                                             <Barcode value={item.kode_barang} displayValue fontSize={16} height={54} width={1.5} />

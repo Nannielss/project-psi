@@ -56,6 +56,23 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
     const [showModal, setShowModal] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<DamagedEntry | null>(null);
     const [form, setForm] = useState<DamagedForm>(defaultForm);
+    const [search, setSearch] = useState('');
+    const [conditionFilter, setConditionFilter] = useState<'all' | DamagedType>('all');
+
+    const filteredEntries = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return entries.filter((entry) => {
+            const matchesSearch =
+                entry.item.nama_barang.toLowerCase().includes(keyword) ||
+                entry.item.kode_barang.toLowerCase().includes(keyword) ||
+                entry.kondisi.toLowerCase().includes(keyword) ||
+                (entry.catatan_maintenance || '').toLowerCase().includes(keyword);
+            const matchesCondition = conditionFilter === 'all' || entry.kondisi === conditionFilter;
+
+            return matchesSearch && matchesCondition;
+        });
+    }, [conditionFilter, entries, search]);
 
     const summary = useMemo(
         () => ({
@@ -152,18 +169,41 @@ export default function DamagedItemsIndex({ items, entries }: DamagedItemsPagePr
                 <div className="grid gap-6 xl:grid-cols-[1.45fr_0.75fr]">
                     <div className="vk-card overflow-hidden">
                         <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-5">
-                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Recent Entries</h3>
-                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Riwayat laporan barang bermasalah terbaru.</p>
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Recent Entries</h3>
+                                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Riwayat laporan barang bermasalah terbaru.</p>
+                                </div>
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                    <input
+                                        type="text"
+                                        value={search}
+                                        onChange={(event) => setSearch(event.target.value)}
+                                        placeholder="Cari barang, kode, kondisi, catatan..."
+                                        className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 md:w-80"
+                                    />
+                                    <select
+                                        value={conditionFilter}
+                                        onChange={(event) => setConditionFilter(event.target.value as 'all' | DamagedType)}
+                                        className="h-11 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    >
+                                        <option value="all">Semua Kondisi</option>
+                                        <option value="rusak">Rusak</option>
+                                        <option value="expired">Expired</option>
+                                        <option value="hilang">Hilang</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {entries.length === 0 ? (
+                            {filteredEntries.length === 0 ? (
                                 <div className="px-6 py-16 text-center">
-                                    <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Belum ada laporan</p>
-                                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Buat laporan saat ada barang rusak, expired, atau hilang.</p>
+                                    <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Laporan tidak ditemukan</p>
+                                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Coba ubah search atau filter kondisi.</p>
                                 </div>
                             ) : (
-                                entries.map((entry) => (
+                                filteredEntries.map((entry) => (
                                     <div key={entry.id} className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center">
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">

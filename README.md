@@ -5,7 +5,7 @@ Aplikasi web berbasis Laravel, Inertia, React, dan TypeScript untuk mengelola pe
 ## Fitur Utama
 
 - Dashboard gudang dengan ringkasan stok, nilai inventaris, transaksi hari ini, dan restock terbaru
-- Master barang dengan indikator stok (hijau, kuning, merah)
+- Master barang dengan kategori, lokasi penyimpanan, dan indikator stok (hijau, kuning, merah)
 - Manajemen stok masuk, stok keluar, dan penyesuaian manual
 - Barang rusak / expired yang otomatis memengaruhi stok
 - Supplier, pelanggan / reseller, dan lokasi penyimpanan

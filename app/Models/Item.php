@@ -16,6 +16,11 @@ class Item extends Model
         return $this->belongsTo(Location::class);
     }
 
+    public function category()
+    {
+        return $this->belongsTo(ItemCategory::class, 'item_category_id');
+    }
+
     public function stockTransactions()
     {
         return $this->hasMany(StockTransaction::class);
